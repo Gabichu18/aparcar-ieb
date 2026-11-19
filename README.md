@@ -32,6 +32,7 @@ test mode: login codes and emails are printed in the console/logs.
 | `MAIL_FROM` | Sender shown on emails; must be a sender verified in Brevo | `Aparcar IEB <you@gmail.com>` |
 | `MAILJET_API_KEY` + `MAILJET_SECRET_KEY` | Alternative to Brevo: free Mailjet account (200 emails a day) | from Mailjet → Account settings → API keys |
 | `SMTP_URL` | Alternative to Brevo: any SMTP server (blocked on Render's free plan) | `smtps://user:pass@smtp.gmail.com` |
+| `CAMPUS_LAT` + `CAMPUS_LNG` (+ `CAMPUS_RADIUS_M`, default 400) | Optional: campus position. When set, only people within that distance can answer "¿Quedan sitios libres?" | `40.45` / `-3.78` |
 | `TELEGRAM_BOT_TOKEN` | Optional, free: token of a Telegram bot made with @BotFather. Students can then link Telegram in "Mis coches" and get alerts there with "Voy de camino" / "Ya lo he movido" buttons | `123456789:AA...` |
 | `ALLOWED_EMAIL_DOMAINS` | Email domains allowed to sign up (comma separated) | `ieb.es,alumni-ieb.es` (default) |
 | `APP_URL` | Public address, used in emails. On Render it is detected automatically | `https://aparcar-ieb.onrender.com` |
