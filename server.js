@@ -57,6 +57,9 @@ async function main() {
     await db.run('DELETE FROM alerts WHERE created_at < ?', t - 30 * 86400e3);
   }
   await cleanup();
+  // Pending login codes only live 10 minutes; clearing them on each deploy also resets the
+  // per-email code limit if something went wrong (e.g. the email service was misconfigured).
+  await db.run('DELETE FROM login_codes');
   setInterval(() => cleanup().catch(console.error), 3600e3).unref();
 
   // ---------- Push: VAPID keys from env, or generated once and kept in the database ----------
