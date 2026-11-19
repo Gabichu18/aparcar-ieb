@@ -188,7 +188,6 @@ document.addEventListener('visibilitychange', () => {
 async function loadMe() {
   const me = await api('/api/me');
   $('#meEmail').textContent = me.email;
-  $('#firstStep').classList.toggle('hidden', me.plates.length > 0 && (me.pushDevices > 0 || (me.telegram && me.telegram.linked)));
   $('#plateList').innerHTML = me.plates.length ? me.plates.map((p) => `
     <div class="item"><div class="head">
       <span><span class="plate-tag">${esc(fmtPlate(p.plate))}</span> <span class="meta">${esc(p.label || '')}</span></span>
@@ -200,6 +199,7 @@ async function loadMe() {
   }));
   updatePushStatus(me.pushDevices);
   updateTelegram(me.telegram || {});
+  renderGuide(me);
   return me;
 }
 $('#plateForm').addEventListener('submit', async (e) => {
@@ -263,7 +263,113 @@ async function enablePush() {
 $('#enablePush').addEventListener('click', enablePush);
 $('#testPush').addEventListener('click', async () => {
   const r = await api('/api/push/test', { method: 'POST' });
+  if (r.delivered) { store.set('guide.tested', '1'); loadMe(); }
   toast(r.delivered ? 'Prueba enviada. Debería aparecer en un momento.' : 'Aún no hay ningún dispositivo conectado. Activa primero las notificaciones.');
+});
+
+// ---------- First steps guide ----------
+// Numbered steps at the top of "Mis coches". Each one ticks itself when done, fades and disappears.
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+const isAndroid = /android/i.test(navigator.userAgent);
+const isMobile = isIOS || isAndroid || /mobi/i.test(navigator.userAgent);
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installPrompt = e; if (lastMe) renderGuide(lastMe); });
+window.addEventListener('appinstalled', () => { store.set('guide.installed', '1'); if (lastMe) renderGuide(lastMe); });
+let lastMe = null;
+let guideTimers = [];
+
+function guideSteps(me) {
+  const perm = pushSupported ? Notification.permission : 'unsupported';
+  const installed = isStandalone || store.get('guide.installed') === '1';
+  const pushOn = pushSupported && perm === 'granted' && me.pushDevices > 0;
+  let installHow;
+  if (isIOS) installHow = 'En <b>Safari</b>, pulsa <b>Compartir</b> (el cuadrado con la flecha ⬆️) y luego <b>«Añadir a pantalla de inicio»</b>. Después abre Aparcar IEB <b>desde ese icono</b>.';
+  else if (isAndroid) installHow = installPrompt ? 'Pulsa el botón y confirma. Aparecerá el icono de Aparcar IEB en tu móvil.'
+    : 'En Chrome, pulsa el menú <b>⋮</b> (arriba a la derecha) y luego <b>«Instalar aplicación»</b> o <b>«Añadir a pantalla de inicio»</b>.';
+  else installHow = `Abre <b>${esc(location.host)}</b> en el navegador de tu móvil y añádela a la pantalla de inicio. Así te llegan los avisos aunque no estés en el ordenador.`;
+  let pushHow, pushBtn = null, pushDone = pushOn || store.get('guide.nopush') === '1';
+  if (isIOS && !isStandalone) pushHow = 'En iPhone primero tienes que instalar la app (paso 3) y abrirla desde el icono. Luego vuelve aquí.';
+  else if (!pushSupported) { pushHow = 'Este navegador no puede mostrar notificaciones. Te avisaremos por email.'; pushBtn = ['nopush', 'Entendido']; }
+  else if (perm === 'denied') pushHow = 'Las has bloqueado. Ve a los ajustes del navegador, permite las notificaciones para esta web y vuelve aquí.';
+  else { pushHow = 'Pulsa el botón y después <b>«Permitir»</b>. Así te enteras al momento si tu coche bloquea a alguien.'; pushBtn = ['push', 'Activar notificaciones']; }
+  return [
+    { n: 1, key: 'login', title: 'Entra con tu email de la universidad', done: true },
+    { n: 2, key: 'car', title: 'Añade la matrícula de tu coche', done: me.plates.length > 0,
+      how: 'Escribe tu matrícula abajo y pulsa <b>Añadir</b>. Puedes añadir hasta 3 coches.', btn: ['car', 'Añadir mi coche'] },
+    { n: 3, key: 'install', title: 'Instala la app en tu móvil', done: installed, how: installHow,
+      btn: installPrompt ? ['install', 'Instalar la app'] : isIOS ? null : ['installed', 'Ya la tengo instalada'] },
+    { n: 4, key: 'push', title: 'Activa las notificaciones', done: pushDone, how: pushHow, btn: pushBtn },
+    { n: 5, key: 'test', title: 'Haz una prueba', done: store.get('guide.tested') === '1' || (pushDone && !pushOn),
+      how: 'Te mandamos una notificación de prueba para comprobar que te llegan.', btn: pushOn ? ['test', 'Enviarme una prueba'] : null },
+  ];
+}
+
+function renderGuide(me) {
+  lastMe = me;
+  const box = $('#guide');
+  guideTimers.forEach(clearTimeout); guideTimers = [];
+  const steps = guideSteps(me);
+  const seen = (store.get('guide.seen') || '').split(',').filter(Boolean);
+  const allDone = steps.every((s) => s.done);
+  const hiddenByUser = store.get('guide.hidden') === '1';
+  $('#showGuide').classList.toggle('hidden', !hiddenByUser && !(allDone && store.get('guide.finished') === '1'));
+  if (hiddenByUser || (allDone && store.get('guide.finished') === '1')) { box.classList.add('hidden'); return; }
+
+  const visible = steps.filter((s) => !s.done || !seen.includes(s.key)); // done + already seen = gone
+  const current = steps.find((s) => !s.done);
+  const doneCount = steps.filter((s) => s.done).length;
+  box.classList.remove('hidden', 'gone');
+  box.innerHTML = `
+    <div class="guide-head"><b>Primeros pasos</b><span class="muted small">${doneCount} de ${steps.length}</span>
+      <button type="button" class="guide-close" aria-label="Ocultar los primeros pasos">✕</button></div>
+    <div class="guide-bar"><span style="width:${doneCount / steps.length * 100}%"></span></div>
+    <ol class="guide-steps">${visible.map((s) => `
+      <li data-key="${s.key}" class="${s.done ? 'done' : s === current ? 'current' : ''}">
+        <span class="num">${s.done ? '✓' : s.n}</span>
+        <div><b>${esc(s.title)}</b>
+          ${s === current ? `<small>${s.how}</small>${s.btn ? `<button type="button" class="primary guide-btn" data-act="${s.btn[0]}">${esc(s.btn[1])}</button>` : ''}` : ''}
+        </div></li>`).join('')}
+    </ol>
+    ${allDone ? '<div class="guide-done">🎉 ¡Todo listo! Ya pueden avisarte si tu coche bloquea a alguien.</div>' : ''}`;
+
+  // Newly completed steps: show the tick for a moment, then fade them away.
+  const fresh = steps.filter((s) => s.done && !seen.includes(s.key)).map((s) => s.key);
+  if (fresh.length) {
+    store.set('guide.seen', [...seen, ...fresh].join(','));
+    guideTimers.push(setTimeout(() => fresh.forEach((k) => {
+      const li = box.querySelector(`li[data-key="${k}"]`); if (li) li.classList.add('gone');
+    }), 1400));
+  }
+  if (allDone) {
+    store.set('guide.finished', '1');
+    guideTimers.push(setTimeout(() => box.classList.add('gone'), 4000));
+    guideTimers.push(setTimeout(() => { box.classList.add('hidden'); $('#showGuide').classList.remove('hidden'); }, 4800));
+  }
+
+  box.querySelector('.guide-close').addEventListener('click', () => { store.set('guide.hidden', '1'); renderGuide(me); });
+  box.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', async () => {
+    const act = b.dataset.act;
+    if (act === 'car') { $('#newPlate').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('#newPlate').focus(); }
+    else if (act === 'install' && installPrompt) {
+      installPrompt.prompt();
+      const choice = await installPrompt.userChoice.catch(() => ({}));
+      installPrompt = null;
+      if (choice.outcome === 'accepted') store.set('guide.installed', '1');
+      renderGuide(me);
+    }
+    else if (act === 'installed') { store.set('guide.installed', '1'); renderGuide(me); }
+    else if (act === 'push') enablePush();
+    else if (act === 'nopush') { store.set('guide.nopush', '1'); renderGuide(me); }
+    else if (act === 'test') $('#testPush').click();
+  }));
+}
+$('#showGuide').addEventListener('click', () => {
+  store.del('guide.hidden'); store.del('guide.seen'); store.del('guide.finished');
+  openTab('cars'); window.scrollTo(0, 0);
 });
 
 // ---------- Start ----------
@@ -274,8 +380,6 @@ async function start() {
   try {
     const me = await api('/api/me');
     show('app'); renderZones(); openTab(tabFromHash()); loadAlerts();
-    // Nudge new users to register a car first.
-    
   } catch (err) {
     if (err.status === 401) show('login'); else toast(err.message);
   }
@@ -287,5 +391,9 @@ if ('serviceWorker' in navigator) {
   });
 }
 window.addEventListener('hashchange', () => { if (config) openTab(tabFromHash()); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && config) loadAlerts(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !config) return;
+  loadAlerts();
+  if (!$('#tab-cars').classList.contains('hidden') && !$('#appView').classList.contains('hidden')) loadMe().catch(() => {});
+});
 start();

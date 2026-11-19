@@ -38,6 +38,16 @@
       </form>
       <p id="devNote" class="note hidden">Modo de prueba: el código aparece en la consola del servidor.</p>
     </section>
+    <section class="card guide guide-login">
+      <div class="guide-head"><b>Primeros pasos</b></div>
+      <ol class="guide-steps">
+        <li class="current"><span class="num">1</span><div><b>Entra con tu email de la universidad</b><small>Estás aquí 👆</small></div></li>
+        <li><span class="num">2</span><div><b>Añade la matrícula de tu coche</b></div></li>
+        <li><span class="num">3</span><div><b>Instala la app en tu móvil</b></div></li>
+        <li><span class="num">4</span><div><b>Activa las notificaciones</b></div></li>
+        <li><span class="num">5</span><div><b>Haz una prueba</b></div></li>
+      </ol>
+    </section>
   </main>
 
   <!-- App -->
@@ -75,7 +85,7 @@
     <!-- My cars -->
     <section id="tab-cars" class="tab">
       <h1>Mis coches</h1>
-      <div id="firstStep" class="note step hidden"><b>Primer paso:</b> registra la matrícula de tu coche y activa las notificaciones. Así tus compañeros podrán avisarte si les bloqueas.</div>
+      <div id="guide" class="guide hidden" aria-live="polite"></div>
       <p class="muted">Nadie puede ver tu nombre ni tu email: solo reciben el aviso.</p>
       <div id="plateList" class="list"></div>
       <form id="plateForm" class="row">
@@ -103,6 +113,7 @@
 
       <h2>Cuenta</h2>
       <p class="muted small">Has entrado como <span id="meEmail"></span>.</p>
+      <p><button id="showGuide" class="link hidden" type="button">Ver los primeros pasos</button></p>
       <button id="deleteAccount" class="danger">Borrar mi cuenta y mis datos</button>
     </section>
   </main>
