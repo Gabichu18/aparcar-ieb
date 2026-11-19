@@ -409,8 +409,8 @@ async function main() {
       await db.run('DELETE FROM checkin_prefs WHERE user_id = ?', req.user.id);
       return res.json({ ok: true, time: null });
     }
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time) || toMinutes(time) < 6 * 60 || toMinutes(time) > 21 * 60) {
-      return res.status(400).json({ error: 'Elige una hora entre las 06:00 y las 21:00.' });
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time) || toMinutes(time) < 8 * 60 || toMinutes(time) > 11 * 60 + 20) {
+      return res.status(400).json({ error: 'Elige una hora entre las 08:00 y las 11:20.' });
     }
     // If today's time already passed, don't send it again today.
     const m = madridNow();

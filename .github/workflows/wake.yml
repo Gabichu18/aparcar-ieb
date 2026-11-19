@@ -3,7 +3,10 @@
 name: Despertar la app
 on:
   schedule:
-    - cron: '*/15 5-19 * * 1-5'   # every 15 min, 05:00-19:59 UTC (06:00-21:00 in Madrid), Mon-Fri
+    # Every 15 min, Mon-Fri, covering 08:00-11:20 Madrid time in both winter (UTC+1) and summer (UTC+2).
+    # GitHub uses UTC: 06:00-10:15 UTC.
+    - cron: '*/15 6-9 * * 1-5'
+    - cron: '0,15 10 * * 1-5'
   workflow_dispatch:
 jobs:
   wake:
