@@ -29,6 +29,7 @@ test mode: login codes and emails are printed in the console/logs.
 | `DATABASE_URL` | Postgres connection string (free Neon database). If empty, local SQLite is used | `postgresql://user:pass@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require` |
 | `BREVO_API_KEY` | Free Brevo account API key, used to send emails over HTTPS | `xkeysib-...` |
 | `MAIL_FROM` | Sender shown on emails; must be a sender verified in Brevo | `Aparcar IEB <you@gmail.com>` |
+| `MAILJET_API_KEY` + `MAILJET_SECRET_KEY` | Alternative to Brevo: free Mailjet account (200 emails a day) | from Mailjet → Account settings → API keys |
 | `SMTP_URL` | Alternative to Brevo: any SMTP server (blocked on Render's free plan) | `smtps://user:pass@smtp.gmail.com` |
 | `ALLOWED_EMAIL_DOMAINS` | Email domains allowed to sign up (comma separated) | `ieb.es,alumni-ieb.es` (default) |
 | `APP_URL` | Public address, used in emails. On Render it is detected automatically | `https://aparcar-ieb.onrender.com` |
