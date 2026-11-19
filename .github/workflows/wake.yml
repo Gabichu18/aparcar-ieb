@@ -1,0 +1,13 @@
+# Keeps the free Render server awake on weekday daytime so the daily
+# "¿Quedan sitios libres?" notifications go out on time. Free (GitHub Actions minutes).
+name: Despertar la app
+on:
+  schedule:
+    - cron: '*/15 5-19 * * 1-5'   # every 15 min, 05:00-19:59 UTC (06:00-21:00 in Madrid), Mon-Fri
+  workflow_dispatch:
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - run: curl -fsS -m 120 --retry 2 https://aparcar-ieb.onrender.com/healthz || true

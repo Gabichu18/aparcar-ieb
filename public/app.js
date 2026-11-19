@@ -42,6 +42,7 @@ function openTab(name) {
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   if (name === 'activity') loadAlerts();
   if (name === 'cars') loadMe();
+  if (name === 'parking') loadParking();
   if (name === 'alert') setTimeout(() => zoneMap && zoneMap.refresh(), 50);
   window.scrollTo(0, 0);
 }
@@ -53,6 +54,7 @@ function tabFromHash() {
   const h = location.hash.slice(1);
   if (h === 'incoming' || h === 'sent' || h === 'activity') return 'activity';
   if (h === 'alert') return 'alert';
+  if (h === 'parking') return 'parking';
   return 'cars';
 }
 
@@ -159,6 +161,77 @@ async function loadAlerts() {
     $('#badge').classList.toggle('hidden', !incoming.some((a) => a.status === 'notified'));
   } catch (err) { if (err.status === 401) show('login'); }
 }
+
+// ---------- Free spots ----------
+let parkingInfo = null;
+let lastPosition = null; // { lat, lng, at }
+function getPosition() {
+  if (lastPosition && Date.now() - lastPosition.at < 5 * 60e3) return Promise.resolve(lastPosition);
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('Tu móvil no permite saber la ubicación.'));
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve(lastPosition = { lat: p.coords.latitude, lng: p.coords.longitude, at: Date.now() }),
+      () => reject(new Error('Necesitamos tu ubicación para comprobar que estás en el IEB. Permítela e inténtalo de nuevo.')),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+  });
+}
+async function loadParking() {
+  try { parkingInfo = await api('/api/parking'); } catch (err) { return toast(err.message); }
+  const st = parkingInfo.status;
+  $('#parkingStatus').innerHTML = config.zones.map((z, i) => {
+    const r = st[z.id];
+    const pill = !r ? '<span class="pill">Sin datos</span>'
+      : r.status === 'free' ? '<span class="pill moved">Hay sitio</span>' : '<span class="pill not_registered">Lleno</span>';
+    return `<div class="item"><div class="head"><span><b>${i + 1}. ${esc(z.name)}</b></span>${pill}</div>
+      ${r ? `<div class="meta">${ago(r.at)}</div>` : ''}</div>`;
+  }).join('');
+  $('#parkingHint').textContent = parkingInfo.needsLocation
+    ? 'Toca cómo está cada zona (solo las que hayas visto). Te pediremos la ubicación para comprobar que estás en el IEB.'
+    : 'Toca cómo está cada zona. Solo las que hayas visto.';
+  $('#parkingReport').innerHTML = config.zones.map((z, i) => `
+    <div class="item report-row"><b>${i + 1}. ${esc(z.name)}</b>
+      <div class="actions"><button type="button" class="secondary" data-zone="${esc(z.id)}" data-status="free">✅ Hay sitio</button>
+      <button type="button" class="secondary" data-zone="${esc(z.id)}" data-status="full">⛔ Lleno</button></div></div>`).join('');
+  $('#parkingReport').querySelectorAll('[data-status]').forEach((b) => b.addEventListener('click', async () => {
+    try {
+      const body = { zone: b.dataset.zone, status: b.dataset.status };
+      if (parkingInfo.needsLocation) Object.assign(body, await getPosition());
+      await api('/api/parking/report', { body });
+      b.parentElement.querySelectorAll('button').forEach((x) => x.classList.toggle('chosen', x === b));
+      toast('¡Gracias! Los demás ya lo pueden ver.');
+      const st2 = await api('/api/parking'); parkingInfo.status = st2.status;
+      loadParkingStatusOnly();
+    } catch (err) { toast(err.message); }
+  }));
+  const t = parkingInfo.time;
+  if (t) $('#checkinTime').value = t;
+  $('#checkinState').textContent = t
+    ? `✅ Te preguntaremos a las ${t}, de lunes a viernes.`
+    : 'El aviso diario está desactivado. Elige tu hora y pulsa Guardar.';
+  $('#checkinOff').classList.toggle('hidden', !t);
+}
+function loadParkingStatusOnly() {
+  const st = parkingInfo.status;
+  $('#parkingStatus').querySelectorAll('.item').forEach((el, i) => {
+    const r = st[config.zones[i].id]; if (!r) return;
+    el.querySelector('.pill').outerHTML = r.status === 'free' ? '<span class="pill moved">Hay sitio</span>' : '<span class="pill not_registered">Lleno</span>';
+    const meta = el.querySelector('.meta');
+    if (meta) meta.textContent = ago(r.at); else el.insertAdjacentHTML('beforeend', `<div class="meta">${ago(r.at)}</div>`);
+  });
+}
+$('#checkinForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    const r = await api('/api/parking/time', { method: 'PUT', body: { time: $('#checkinTime').value } });
+    toast(`Listo: te preguntaremos a las ${r.time}.`);
+    loadParking();
+    if (!(pushSupported && Notification.permission === 'granted')) toast('Recuerda activar las notificaciones en Mis coches para recibir el aviso.');
+  } catch (err) { toast(err.message); }
+});
+$('#checkinOff').addEventListener('click', async () => {
+  await api('/api/parking/time', { method: 'PUT', body: { time: null } });
+  toast('Aviso diario desactivado.'); loadParking();
+});
 
 // ---------- Telegram ----------
 function updateTelegram(tg) {

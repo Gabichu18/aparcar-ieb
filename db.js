@@ -52,6 +52,19 @@ const TABLES = (pg) => `
   CREATE INDEX IF NOT EXISTS alerts_reporter ON alerts(reporter_id, created_at);
   CREATE INDEX IF NOT EXISTS alerts_owner ON alerts(owner_id, created_at);
   CREATE INDEX IF NOT EXISTS alerts_plate ON alerts(plate, created_at);
+  CREATE TABLE IF NOT EXISTS checkin_prefs (
+    user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    time TEXT NOT NULL,
+    last_sent TEXT
+  );
+  CREATE TABLE IF NOT EXISTS spot_reports (
+    id ${pg ? 'BIGSERIAL' : 'INTEGER'} PRIMARY KEY,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    zone TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at BIGINT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS spot_reports_time ON spot_reports(created_at);
   CREATE TABLE IF NOT EXISTS telegram_chats (
     user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     chat_id TEXT NOT NULL

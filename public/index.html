@@ -82,6 +82,28 @@
       <p class="muted small">Avisos de las últimas 24 horas. Los avisos se borran a los 30 días.</p>
     </section>
 
+    <!-- Free spots -->
+    <section id="tab-parking" class="tab hidden">
+      <h1>Sitios libres</h1>
+      <p class="muted">Lo que han contado otros alumnos en las últimas 3 horas.</p>
+      <div id="parkingStatus" class="list"></div>
+
+      <h2>¿Estás en el IEB? Cuéntalo</h2>
+      <p class="muted small" id="parkingHint">Toca cómo está cada zona. Solo las que hayas visto.</p>
+      <div id="parkingReport" class="list"></div>
+
+      <h2>Aviso diario</h2>
+      <div class="card checkin">
+        <p>Te mandamos una notificación a la hora a la que sueles llegar (de lunes a viernes) para que nos digas si quedan sitios.</p>
+        <form id="checkinForm" class="row">
+          <input id="checkinTime" type="time" min="06:00" max="21:00" step="300" value="08:45" required>
+          <button class="primary" type="submit">Guardar</button>
+        </form>
+        <p id="checkinState" class="note"></p>
+        <button id="checkinOff" type="button" class="link hidden">Desactivar el aviso diario</button>
+      </div>
+    </section>
+
     <!-- My cars -->
     <section id="tab-cars" class="tab">
       <h1>Mis coches</h1>
@@ -121,6 +143,7 @@
   <nav id="tabs" class="tabs hidden">
     <button data-tab="cars" class="active"><span>🚗</span>Mis coches</button>
     <button data-tab="alert"><span>📣</span>Avisar</button>
+    <button data-tab="parking"><span>🅿️</span>Sitios</button>
     <button data-tab="activity"><span>🔔</span>Actividad<i id="badge" class="badge hidden"></i></button>
   </nav>
 

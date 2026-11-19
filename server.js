@@ -24,7 +24,30 @@ const LIMITS = {
   codeRequestsPerHour: 5,  // per email
   maxPlatesPerUser: 3,
   sessionDays: 180,
+  spotReportsPerHour: 20,
+  spotReportHours: 3,      // a "free / full" answer is shown for 3 hours
 };
+
+// Campus location, to check that people answering "are there free spots?" are really there.
+// Set CAMPUS_LAT / CAMPUS_LNG (and optionally CAMPUS_RADIUS_M) to turn the check on.
+const CAMPUS = process.env.CAMPUS_LAT && process.env.CAMPUS_LNG
+  ? { lat: Number(process.env.CAMPUS_LAT), lng: Number(process.env.CAMPUS_LNG), radius: Number(process.env.CAMPUS_RADIUS_M || 400) }
+  : null;
+function metersBetween(a, b) {
+  const R = 6371e3, rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+// Current date, weekday and HH:MM in Madrid (the server itself runs in UTC).
+function madridNow() {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', weekday: 'short', hourCycle: 'h23',
+  }).formatToParts(new Date()).map((p) => [p.type, p.value]));
+  return { day: `${parts.year}-${parts.month}-${parts.day}`, weekday: parts.weekday, time: `${parts.hour}:${parts.minute}` };
+}
+const toMinutes = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
 const now = () => Date.now();
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
@@ -56,6 +79,7 @@ async function main() {
     await db.run('DELETE FROM login_codes WHERE expires_at < ?', t - 3600e3);
     await db.run('DELETE FROM sessions WHERE expires_at < ?', t);
     await db.run('DELETE FROM alerts WHERE created_at < ?', t - 30 * 86400e3);
+    await db.run('DELETE FROM spot_reports WHERE created_at < ?', t - 7 * 86400e3);
   }
   await cleanup();
   // Pending login codes only live 10 minutes; clearing them on each deploy also resets the
@@ -117,7 +141,9 @@ async function main() {
     next();
   });
 
-  app.get('/healthz', (req, res) => res.send('ok'));
+  // A free scheduled GitHub Action calls this every 15 minutes on weekdays so the free Render
+  // server is awake when the daily "free spots?" questions have to go out.
+  app.get('/healthz', (req, res) => { checkinTick().catch(console.error); res.send('ok'); });
 
   const zoneName = (id) => (zones.find((z) => z.id === id) || {}).name || id;
 
@@ -327,6 +353,71 @@ async function main() {
       return res.status(404).json({ error: 'Aviso no encontrado' });
     }
     res.json({ ok: true });
+  }));
+
+  // ---------- Free spots: daily question at a time each student picks + live status ----------
+  let ticking = false;
+  async function checkinTick() {
+    if (ticking) return; ticking = true;
+    try {
+      const m = madridNow();
+      if (m.weekday === 'Sat' || m.weekday === 'Sun') return;
+      const nowMin = toMinutes(m.time);
+      const due = await db.all('SELECT user_id, time FROM checkin_prefs WHERE last_sent IS NULL OR last_sent <> ?', m.day);
+      for (const p of due) {
+        const late = nowMin - toMinutes(p.time);
+        if (late < 0 || late > 45) continue; // only around the chosen time (server may have been asleep)
+        await db.run('UPDATE checkin_prefs SET last_sent = ? WHERE user_id = ?', m.day, p.user_id);
+        await pushToUser(p.user_id, {
+          title: '🅿️ ¿Quedan sitios libres?',
+          body: 'Si ya estás en el IEB, dinos cómo está el aparcamiento. Son dos toques y ayudas a los demás.',
+          url: '/#parking',
+        });
+      }
+    } finally { ticking = false; }
+  }
+  setInterval(() => checkinTick().catch(console.error), 60e3).unref();
+
+  app.get('/api/parking', auth, h(async (req, res) => {
+    const since = now() - LIMITS.spotReportHours * 3600e3;
+    const rows = await db.all('SELECT zone, status, created_at FROM spot_reports WHERE created_at > ? ORDER BY created_at DESC', since);
+    const latest = {};
+    for (const r of rows) if (!latest[r.zone]) latest[r.zone] = { status: r.status, at: r.created_at };
+    const pref = await db.get('SELECT time FROM checkin_prefs WHERE user_id = ?', req.user.id);
+    res.json({ status: latest, time: pref ? pref.time : null, needsLocation: Boolean(CAMPUS) });
+  }));
+
+  app.post('/api/parking/report', auth, h(async (req, res) => {
+    const zone = String(req.body.zone || '');
+    const status = String(req.body.status || '');
+    if (!zones.some((z) => z.id === zone)) return res.status(400).json({ error: 'Elige una zona.' });
+    if (!['free', 'full'].includes(status)) return res.status(400).json({ error: 'Respuesta no válida.' });
+    if (CAMPUS) {
+      const lat = Number(req.body.lat), lng = Number(req.body.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Necesitamos tu ubicación para comprobar que estás en el IEB.' });
+      if (metersBetween(CAMPUS, { lat, lng }) > CAMPUS.radius) return res.status(403).json({ error: 'Parece que no estás en el IEB. Solo puede responder quien está allí.' });
+    }
+    const n = Number((await db.get('SELECT COUNT(*) AS n FROM spot_reports WHERE user_id = ? AND created_at > ?', req.user.id, now() - 3600e3)).n);
+    if (n >= LIMITS.spotReportsPerHour) return res.status(429).json({ error: 'Has enviado muchas respuestas. Prueba más tarde.' });
+    await db.run('INSERT INTO spot_reports (user_id, zone, status, created_at) VALUES (?, ?, ?, ?)', req.user.id, zone, status, now());
+    res.json({ ok: true });
+  }));
+
+  app.put('/api/parking/time', auth, h(async (req, res) => {
+    const time = req.body.time == null || req.body.time === '' ? null : String(req.body.time);
+    if (time === null) {
+      await db.run('DELETE FROM checkin_prefs WHERE user_id = ?', req.user.id);
+      return res.json({ ok: true, time: null });
+    }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time) || toMinutes(time) < 6 * 60 || toMinutes(time) > 21 * 60) {
+      return res.status(400).json({ error: 'Elige una hora entre las 06:00 y las 21:00.' });
+    }
+    // If today's time already passed, don't send it again today.
+    const m = madridNow();
+    const lastSent = toMinutes(time) <= toMinutes(m.time) ? m.day : null;
+    await db.run('INSERT INTO checkin_prefs (user_id, time, last_sent) VALUES (?, ?, ?) ON CONFLICT (user_id) DO UPDATE SET time = excluded.time, last_sent = excluded.last_sent',
+      req.user.id, time, lastSent);
+    res.json({ ok: true, time });
   }));
 
   // ---------- Telegram ----------

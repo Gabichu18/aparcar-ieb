@@ -148,3 +148,7 @@ input.plate::placeholder { font-weight: 400; letter-spacing: .05em; color: var(-
 .zm-wide-road { stroke-width: 42; }
 .zm-wide-walk { stroke-width: 48; }
 .zm-centerline { fill: none; stroke: #fff; stroke-width: 1.5; stroke-dasharray: 8 6; stroke-opacity: .9; pointer-events: none; }
+.report-row .actions { margin-top: 8px; }
+.report-row button.chosen { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.checkin p { margin-top: 0; }
+.checkin input[type=time] { flex: 1 1 120px; }
