@@ -40,13 +40,13 @@
     <path d="M338,476 H96" class="zm-walk"/>
     <path d="M130,476 V144" class="zm-walk zm-wide-walk"/>
     <circle cx="130" cy="104" r="46" class="zm-walk zm-ring-walk"/>
-    <path d="M130,66 V0" class="zm-walk"/>
+    <path d="M130,66 V0" class="zm-walk zm-wide-walk"/>
     <path d="M338,0 V520" class="zm-road zm-avenue"/>
     <path d="M349,0 V520" class="zm-lane"/>
     <path d="M338,476 H96" class="zm-road"/>
     <path d="M130,476 V144" class="zm-road zm-wide-road"/>
     <circle cx="130" cy="104" r="46" class="zm-road zm-ring"/>
-    <path d="M130,66 V0" class="zm-road"/>
+    <path d="M130,66 V0" class="zm-road zm-wide-road"/>
     <circle cx="130" cy="104" r="34" class="zm-island"/>
     <!-- IEB underground garage: straight on at the end of the NIDO street -->
     <path d="M100,461 L56,456 L56,496 L100,491 Z" class="zm-garage"/>

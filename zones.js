@@ -44,5 +44,7 @@ module.exports = [
     shape: 'line',
     path: 'M130,42 V10',
     parts: ['justo al salir de la rotonda', 'a mitad del tramo', 'al final del tramo'],
+    sides: ['lado de las obras', 'lado de la residencia'],
+    width: 36,
   },
 ];
