@@ -10,6 +10,7 @@
   <link rel="apple-touch-icon" href="/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Aparcar IEB">
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -43,12 +44,13 @@
   <!-- App -->
   <main id="appView" class="view hidden">
     <!-- Send alert -->
-    <section id="tab-alert" class="tab">
+    <section id="tab-alert" class="tab hidden">
       <h1>¿Alguien te bloquea?</h1>
       <form id="alertForm">
         <fieldset>
-          <legend>1. ¿Dónde estás aparcado?</legend>
-          <div id="zoneList" class="zones"></div>
+          <legend>1. Toca en el mapa la calle donde estás aparcado</legend>
+          <div id="zoneMap" class="zone-map"></div>
+          <div id="zoneChips" class="chips" role="radiogroup" aria-label="Zona"></div>
         </fieldset>
         <label>2. Matrícula del coche que te bloquea
           <input id="alertPlate" class="plate" required autocapitalize="characters" autocomplete="off" placeholder="1234 ABC" maxlength="12">
@@ -71,9 +73,10 @@
     </section>
 
     <!-- My cars -->
-    <section id="tab-cars" class="tab hidden">
-      <h2>Mis coches</h2>
-      <p class="muted">Registra tu matrícula para que tus compañeros puedan avisarte si les bloqueas. Nadie puede ver tu nombre ni tu email.</p>
+    <section id="tab-cars" class="tab">
+      <h1>Mis coches</h1>
+      <div id="firstStep" class="note step hidden"><b>Primer paso:</b> registra la matrícula de tu coche y activa las notificaciones. Así tus compañeros podrán avisarte si les bloqueas.</div>
+      <p class="muted">Nadie puede ver tu nombre ni tu email: solo reciben el aviso.</p>
       <div id="plateList" class="list"></div>
       <form id="plateForm" class="row">
         <input id="newPlate" class="plate" required autocapitalize="characters" autocomplete="off" placeholder="1234 ABC" maxlength="12">
@@ -91,17 +94,20 @@
 
       <h2>Cuenta</h2>
       <p class="muted small">Has entrado como <span id="meEmail"></span>.</p>
+      <p id="adminLink" class="hidden"><a class="secondary btnlink" href="/editor.html">✏️ Editar zonas del mapa</a></p>
       <button id="deleteAccount" class="danger">Borrar mi cuenta y mis datos</button>
     </section>
   </main>
 
   <nav id="tabs" class="tabs hidden">
-    <button data-tab="alert" class="active"><span>📣</span>Avisar</button>
+    <button data-tab="cars" class="active"><span>🚗</span>Mis coches</button>
+    <button data-tab="alert"><span>📣</span>Avisar</button>
     <button data-tab="activity"><span>🔔</span>Actividad<i id="badge" class="badge hidden"></i></button>
-    <button data-tab="cars"><span>🚗</span>Mis coches</button>
   </nav>
 
   <div id="toast" class="toast hidden"></div>
+  <script src="/vendor/leaflet/leaflet.js"></script>
+  <script src="/zonemap.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

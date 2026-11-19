@@ -1,6 +1,6 @@
 // Service worker: shows push notifications and caches the app shell.
-const CACHE = 'aparcar-v2';
-const SHELL = ['/', '/style.css', '/app.js', '/icon.svg', '/icon-192.png', '/manifest.webmanifest'];
+const CACHE = 'aparcar-v3';
+const SHELL = ['/', '/style.css', '/app.js', '/zonemap.js', '/vendor/leaflet/leaflet.js', '/vendor/leaflet/leaflet.css', '/icon.svg', '/icon-192.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -12,7 +12,7 @@ self.addEventListener('activate', (e) => {
 // Network first for everything; fall back to cache when offline. Never cache the API.
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.pathname.startsWith('/api/')) return;
+  if (e.request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
   e.respondWith(fetch(e.request).then((res) => {
     const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); return res;
   }).catch(() => caches.match(e.request).then((r) => r || caches.match('/'))));

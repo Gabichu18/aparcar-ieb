@@ -41,17 +41,18 @@ function openTab(name) {
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   if (name === 'activity') loadAlerts();
   if (name === 'cars') loadMe();
+  if (name === 'alert') setTimeout(() => zoneMap && zoneMap.refresh(), 50);
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => {
-  history.replaceState(null, '', b.dataset.tab === 'alert' ? '/' : '#' + b.dataset.tab);
+  history.replaceState(null, '', b.dataset.tab === 'cars' ? '/' : '#' + b.dataset.tab);
   openTab(b.dataset.tab);
 }));
 function tabFromHash() {
   const h = location.hash.slice(1);
   if (h === 'incoming' || h === 'sent' || h === 'activity') return 'activity';
-  if (h === 'cars') return 'cars';
-  return 'alert';
+  if (h === 'alert') return 'alert';
+  return 'cars';
 }
 
 // ---------- Login ----------
@@ -82,18 +83,25 @@ $('#logoutBtn').addEventListener('click', async () => {
 });
 
 // ---------- Send alert ----------
+let zoneMap = null;
+function selectZone(id) {
+  selectedZone = id;
+  if (zoneMap) zoneMap.select(id);
+  $('#zoneChips').querySelectorAll('.chip').forEach((c) => {
+    const on = c.dataset.zone === id;
+    c.classList.toggle('selected', on); c.setAttribute('aria-checked', on);
+  });
+}
 function renderZones() {
-  $('#zoneList').innerHTML = config.zones.map((z) => `
-    <button type="button" class="zone" data-zone="${esc(z.id)}" aria-pressed="false">
-      <img src="/img/${esc(z.id)}.jpg" alt="" loading="lazy">
-      <span><b>${esc(z.name)}</b><small>${esc(z.description)}</small></span>
-    </button>`).join('');
-  $('#zoneList').querySelectorAll('.zone').forEach((btn) => btn.addEventListener('click', () => {
-    selectedZone = btn.dataset.zone;
-    $('#zoneList').querySelectorAll('.zone').forEach((b) => {
-      b.classList.toggle('selected', b === btn); b.setAttribute('aria-pressed', b === btn);
+  $('#zoneChips').innerHTML = config.zones.map((z) => `
+    <button type="button" class="chip" role="radio" aria-checked="false" data-zone="${esc(z.id)}">${esc(z.name)}</button>`).join('');
+  $('#zoneChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => selectZone(c.dataset.zone)));
+  if (!zoneMap && window.L) {
+    zoneMap = ZoneMap.create($('#zoneMap'), {
+      center: config.map.center, zoom: config.map.zoom, zones: config.zones, onSelect: selectZone,
     });
-  }));
+    if (!zoneMap.hasShapes) $('#zoneMap').insertAdjacentHTML('beforeend', '<div class="map-note">Las zonas aún no están dibujadas en el mapa. Elige la zona abajo.</div>');
+  }
 }
 $('#alertForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -149,6 +157,8 @@ async function loadAlerts() {
 async function loadMe() {
   const me = await api('/api/me');
   $('#meEmail').textContent = me.email;
+  $('#firstStep').classList.toggle('hidden', me.plates.length > 0 && me.pushDevices > 0);
+  $('#adminLink').classList.toggle('hidden', !me.isAdmin);
   $('#plateList').innerHTML = me.plates.length ? me.plates.map((p) => `
     <div class="item"><div class="head">
       <span><span class="plate-tag">${esc(fmtPlate(p.plate))}</span> <span class="meta">${esc(p.label || '')}</span></span>
@@ -234,7 +244,7 @@ async function start() {
     const me = await api('/api/me');
     show('app'); renderZones(); openTab(tabFromHash()); loadAlerts();
     // Nudge new users to register a car first.
-    if (!me.plates.length && tabFromHash() === 'alert') toast('Consejo: añade tu matrícula en “Mis coches” para que puedan avisarte.');
+    
   } catch (err) {
     if (err.status === 401) show('login'); else toast(err.message);
   }

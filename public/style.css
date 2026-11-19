@@ -65,3 +65,12 @@ form > .primary { margin-top: 16px; width: 100%; }
 .toast { position: fixed; left: 16px; right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); max-width: 528px; margin: 0 auto;
   background: var(--text); color: var(--bg); padding: 12px 14px; border-radius: 12px; z-index: 10; }
 input.plate::placeholder { font-weight: 400; letter-spacing: .05em; color: var(--muted); opacity: .6; }
+.zone-map { position: relative; height: 340px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: #1b241f; z-index: 0; }
+.map-note { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 500; background: rgba(0,0,0,.72); color: #fff;
+  font-size: .85rem; padding: 8px 10px; border-radius: 10px; pointer-events: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chip { background: var(--card); color: var(--text); border: 2px solid var(--line); border-radius: 99px; padding: 8px 14px; font-size: .9rem; }
+.chip.selected { border-color: var(--warn); background: #fff3e0; color: #7a2e0e; font-weight: 700; }
+.step { border-left: 4px solid var(--accent); }
+.btnlink { display: inline-block; text-decoration: none; padding: 12px 16px; border-radius: 10px; }
+.leaflet-tooltip { font-weight: 700; }

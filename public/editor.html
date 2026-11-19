@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Editor de zonas · Aparcar IEB</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body { padding-bottom: 0; }
+    .editor { display: grid; grid-template-rows: 1fr auto; height: calc(100dvh - 57px); }
+    #map { min-height: 0; }
+    .panel { background: var(--card); border-top: 1px solid var(--line); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); max-height: 46dvh; overflow: auto; }
+    .panel .row { margin-top: 8px; align-items: center; }
+    .panel select, .panel input { font: inherit; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+    .panel select { flex: 1 1 160px; }
+    .ref { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+    .ref img { width: 110px; height: 80px; object-fit: cover; border-radius: 8px; cursor: zoom-in; }
+    .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .seg button { border-radius: 0; background: var(--card); color: var(--text); padding: 10px 12px; }
+    .seg button.on { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+    .vertex { background: #fff; border: 3px solid #f79009; border-radius: 50%; }
+    #bigRef { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center; }
+    #bigRef img { max-width: 96vw; max-height: 90vh; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="/icon.svg" alt="" width="28" height="28"> Editor de zonas</div>
+    <a class="link" href="/">Volver a la app</a>
+  </header>
+
+  <main id="denied" class="view hidden">
+    <div class="card">
+      <h1>Sin acceso</h1>
+      <p id="deniedText" class="muted">Solo los administradores pueden editar las zonas.</p>
+      <a class="primary btnlink" href="/">Ir a la app</a>
+    </div>
+  </main>
+
+  <div id="editor" class="editor hidden">
+    <div id="map"></div>
+    <div class="panel">
+      <div class="row">
+        <select id="zoneSel" aria-label="Zona"></select>
+        <div class="seg" role="group" aria-label="Tipo">
+          <button type="button" data-kind="line">Calle</button>
+          <button type="button" data-kind="area">Área</button>
+        </div>
+      </div>
+      <div class="row">
+        <input id="zoneName" maxlength="60" placeholder="Nombre de la zona" style="flex:1 1 200px">
+      </div>
+      <div class="ref">
+        <img id="refImg" alt="Foto de referencia de la zona">
+        <p class="muted small" style="margin:0">Toca el mapa a lo largo de la zona verde de la foto para añadir puntos.
+          <b>Calle</b> dibuja una línea; <b>Área</b> rellena una forma (para la rotonda).</p>
+      </div>
+      <div class="row">
+        <button type="button" id="undo" class="secondary">↶ Deshacer punto</button>
+        <button type="button" id="clear" class="secondary">Borrar trazado</button>
+        <button type="button" id="save" class="primary">Guardar todo</button>
+      </div>
+      <p class="muted small">Al guardar, la vista actual del mapa (posición y zoom) será la vista inicial para todos.</p>
+    </div>
+  </div>
+
+  <div id="bigRef" class="hidden"><img alt=""></div>
+  <div id="toast" class="toast hidden"></div>
+  <script src="/vendor/leaflet/leaflet.js"></script>
+  <script src="/zonemap.js"></script>
+  <script src="/editor.js"></script>
+</body>
+</html>

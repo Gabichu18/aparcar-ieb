@@ -13,6 +13,8 @@ const APP_URL = (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `http
 // Comma-separated list of allowed email domains.
 const ALLOWED_DOMAINS = (process.env.ALLOWED_EMAIL_DOMAINS || 'ieb.es,alumni-ieb.es')
   .split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
+// Comma-separated emails allowed to edit the zones on the map (zone editor at /editor.html).
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
 const DEV_MODE = mailMode === 'console'; // no email service set up: codes are printed in the logs
 
 const LIMITS = {
@@ -35,7 +37,6 @@ function emailAllowed(e) {
   const domain = e.split('@')[1];
   return ALLOWED_DOMAINS.some((d) => domain === d || domain.endsWith('.' + d));
 }
-const zoneName = (id) => (zones.find((z) => z.id === id) || {}).name || id;
 function getCookie(req, name) {
   const m = (req.headers.cookie || '').match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
   return m ? decodeURIComponent(m[1]) : null;
@@ -118,9 +119,29 @@ async function main() {
 
   app.get('/healthz', (req, res) => res.send('ok'));
 
-  app.get('/api/config', (req, res) => {
-    res.json({ zones, vapidPublicKey: vapid.publicKey, allowedDomains: ALLOWED_DOMAINS, devMode: DEV_MODE });
-  });
+  // ---------- Zone map (shapes drawn in the zone editor, stored in the database) ----------
+  async function getMap() {
+    const row = await db.get("SELECT value FROM settings WHERE key = 'zone_map'");
+    const saved = row ? JSON.parse(row.value) : {};
+    const shapes = saved.zones || {};
+    return {
+      center: saved.center || null,
+      zoom: saved.zoom || 18,
+      zones: zones.map((z) => ({
+        ...z,
+        name: (shapes[z.id] && shapes[z.id].name) || z.name,
+        kind: (shapes[z.id] && shapes[z.id].kind) || 'line',
+        coords: (shapes[z.id] && shapes[z.id].coords) || [],
+      })),
+    };
+  }
+  const zoneName = async (id) => ((await getMap()).zones.find((z) => z.id === id) || {}).name || id;
+  const isAdmin = (user) => ADMIN_EMAILS.includes(user.email);
+
+  app.get('/api/config', h(async (req, res) => {
+    const map = await getMap();
+    res.json({ zones: map.zones, map: { center: map.center, zoom: map.zoom }, vapidPublicKey: vapid.publicKey, allowedDomains: ALLOWED_DOMAINS, devMode: DEV_MODE });
+  }));
 
   // Step 1 of login: email a 6-digit code.
   app.post('/api/auth/request-code', h(async (req, res) => {
@@ -180,13 +201,36 @@ async function main() {
   app.get('/api/me', auth, h(async (req, res) => {
     const plates = await db.all('SELECT plate, label FROM plates WHERE user_id = ? ORDER BY created_at', req.user.id);
     const pushDevices = Number((await db.get('SELECT COUNT(*) AS n FROM push_subs WHERE user_id = ?', req.user.id)).n);
-    res.json({ email: req.user.email, plates, pushDevices });
+    res.json({ email: req.user.email, plates, pushDevices, isAdmin: isAdmin(req.user) });
   }));
 
   // GDPR: delete the account and everything linked to it.
   app.delete('/api/me', auth, h(async (req, res) => {
     await db.run('DELETE FROM users WHERE id = ?', req.user.id);
     res.clearCookie('sid');
+    res.json({ ok: true });
+  }));
+
+  // Save the zone shapes from the zone editor (admins only).
+  app.put('/api/admin/zones', auth, h(async (req, res) => {
+    if (!isAdmin(req.user)) return res.status(403).json({ error: 'Solo los administradores pueden editar las zonas.' });
+    const okNum = (n, lim) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= lim;
+    const okPt = (p) => Array.isArray(p) && p.length === 2 && okNum(p[0], 90) && okNum(p[1], 180);
+    const body = req.body || {};
+    const out = { center: null, zoom: 18, zones: {} };
+    if (okPt(body.center)) out.center = body.center;
+    if (okNum(body.zoom, 22)) out.zoom = Math.round(body.zoom);
+    for (const z of zones) {
+      const s = (body.zones || {})[z.id];
+      if (!s) continue;
+      const coords = Array.isArray(s.coords) ? s.coords.filter(okPt).slice(0, 200) : [];
+      out.zones[z.id] = {
+        name: String(s.name || z.name).trim().slice(0, 60) || z.name,
+        kind: s.kind === 'area' ? 'area' : 'line',
+        coords,
+      };
+    }
+    await db.run("INSERT INTO settings (key, value) VALUES ('zone_map', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value", JSON.stringify(out));
     res.json({ ok: true });
   }));
 
@@ -267,7 +311,7 @@ async function main() {
     const alertId = Number(inserted.id);
 
     if (owner) {
-      const body = `Tu coche ${plate} está bloqueando a alguien en ${zoneName(zone)}.${note ? ' Nota: ' + note : ''}`;
+      const body = `Tu coche ${plate} está bloqueando a alguien en ${await zoneName(zone)}.${note ? ' Nota: ' + note : ''}`;
       await Promise.all([
         pushToUser(owner.user_id, { title: '🚗 Por favor, mueve tu coche', body, url: '/#incoming', alertId, requireInteraction: true }),
         sendMail(owner.email, `Tu coche ${plate} está bloqueando a alguien`,
@@ -301,7 +345,7 @@ async function main() {
     if (alert.reporter_id) {
       await pushToUser(alert.reporter_id, {
         title: status === 'coming' ? 'El dueño va de camino' : 'El coche ya se ha movido',
-        body: `${alert.plate} en ${zoneName(alert.zone)}`,
+        body: `${alert.plate} en ${await zoneName(alert.zone)}`,
         url: '/#sent',
       });
     }
