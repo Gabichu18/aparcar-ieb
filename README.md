@@ -27,6 +27,7 @@ test mode: login codes and emails are printed in the console/logs.
 | Variable | What it does | Example |
 |---|---|---|
 | `DATABASE_URL` | Postgres connection string (free Neon database). If empty, local SQLite is used | `postgresql://user:pass@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require` |
+| `GOOGLE_SCRIPT_URL` + `GOOGLE_SCRIPT_SECRET` | Send emails from your own Gmail via the free Google Apps Script in `google-apps-script/send-mail.gs` (recommended, no approval needed) | `https://script.google.com/macros/s/.../exec` |
 | `BREVO_API_KEY` | Free Brevo account API key, used to send emails over HTTPS | `xkeysib-...` |
 | `MAIL_FROM` | Sender shown on emails; must be a sender verified in Brevo | `Aparcar IEB <you@gmail.com>` |
 | `MAILJET_API_KEY` + `MAILJET_SECRET_KEY` | Alternative to Brevo: free Mailjet account (200 emails a day) | from Mailjet → Account settings → API keys |

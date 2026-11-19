@@ -1,4 +1,6 @@
 // Email sending. Modes, picked from environment variables:
+// - GOOGLE_SCRIPT_URL + GOOGLE_SCRIPT_SECRET set: send from your own Gmail through a free
+//   Google Apps Script (see google-apps-script/send-mail.gs). No approval needed, ~100 emails/day.
 // - BREVO_API_KEY set: send through Brevo's free HTTP API (works on Render's free plan,
 //   which blocks normal SMTP ports). MAIL_FROM must be a sender verified in Brevo.
 // - MAILJET_API_KEY + MAILJET_SECRET_KEY set: Mailjet's free HTTP API (200 emails/day), same idea.
@@ -8,8 +10,10 @@ const MAIL_FROM = process.env.MAIL_FROM || 'Aparcar IEB <no-reply@example.com>';
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const MJ_KEY = process.env.MAILJET_API_KEY || '';
 const MJ_SECRET = process.env.MAILJET_SECRET_KEY || '';
+const GS_URL = process.env.GOOGLE_SCRIPT_URL || '';
+const GS_SECRET = process.env.GOOGLE_SCRIPT_SECRET || '';
 const SMTP_URL = process.env.SMTP_URL || '';
-const mailMode = BREVO_API_KEY ? 'brevo' : (MJ_KEY && MJ_SECRET) ? 'mailjet' : SMTP_URL ? 'smtp' : 'console';
+const mailMode = (GS_URL && GS_SECRET) ? 'google' : BREVO_API_KEY ? 'brevo' : (MJ_KEY && MJ_SECRET) ? 'mailjet' : SMTP_URL ? 'smtp' : 'console';
 
 function parseFrom(from) {
   const m = from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
@@ -23,6 +27,20 @@ async function sendMail(to, subject, text) {
   try {
     if (mailMode === 'console') {
       console.log(`\n[TEST EMAIL] to=${to}\nSubject: ${subject}\n${text}\n`);
+      return true;
+    }
+    if (mailMode === 'google') {
+      // Apps Script answers a POST with a redirect to the result; fetch follows it.
+      const res = await fetch(GS_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ secret: GS_SECRET, to, subject, text }),
+      });
+      const out = await res.text().catch(() => '');
+      if (!res.ok || !out.includes('"ok":true')) {
+        console.error('email failed (google script)', res.status, out.slice(0, 300));
+        return false;
+      }
       return true;
     }
     if (mailMode === 'brevo') {
