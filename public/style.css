@@ -78,8 +78,19 @@ input.plate::placeholder { font-weight: 400; letter-spacing: .05em; color: var(-
 .zm-avenue { stroke: #7c8580; stroke-width: 34; }
 .zm-ring { stroke-width: 30; }
 .zm-island { fill: #c5ccc7; }
-.zm-garage { fill: #3d4541; }
-.zm-garage-label { font: 700 10px system-ui, sans-serif; fill: #fff; text-anchor: middle; }
+.zm-garage { fill: #2f3633; }
+.zm-garage-arrow { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.zm-garage-label-out { font: 700 10px system-ui, sans-serif; fill: #2f3633; text-anchor: middle; }
+.zm-lawn { fill: #c9dcb4; stroke: #b3c99c; stroke-width: 1; }
+.zm-tower { fill: #cbbf9f; stroke: #b5a77f; stroke-width: 1; }
+.zm-tree { fill: #8fb07a; stroke: #7a9c66; stroke-width: 1; }
+.zm-steps { stroke: #f4f1ea; stroke-width: 7; stroke-dasharray: 2 2; }
+.zm-yard { fill: #e2e6e3; stroke: #c6cdc8; stroke-width: 1; }
+.zm-split { stroke: #b9c1bb; stroke-width: 1.5; stroke-dasharray: 4 3; }
+.zm-nido-logo { fill: #2b2f2d; }
+.zm-nido-logo-t { font: 800 8px system-ui, sans-serif; fill: #fff; text-anchor: middle; }
+.zm-walk { fill: none; stroke: #d6dbd7; stroke-width: 40; stroke-linecap: round; stroke-linejoin: round; }
+.zm-lane { stroke: #e8e2c8; stroke-width: 1.5; stroke-dasharray: 10 8; }
 .zm-arrow { stroke: #3d4541; stroke-width: 3; }
 .zm-street-label { font: 700 12px system-ui, sans-serif; fill: #fff; text-anchor: middle; letter-spacing: .1em; }
 .zm-hint { font: 600 10px system-ui, sans-serif; fill: #59645d; text-anchor: middle; }

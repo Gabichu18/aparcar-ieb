@@ -8,27 +8,49 @@
   // zones are drawn on top of them in green.
   const BACKGROUND = `
     <rect x="0" y="0" width="360" height="520" class="zm-ground"/>
-    <!-- buildings -->
-    <rect x="14" y="80" width="56" height="44" rx="8" class="zm-bld zm-site"/>
-    <text x="42" y="106" class="zm-bld-sub">obras</text>
-    <rect x="14" y="158" width="90" height="292" rx="10" class="zm-bld zm-ieb"/>
-    <text x="59" y="290" class="zm-bld-label">IEB</text>
-    <text x="59" y="310" class="zm-bld-sub">🏛️</text>
+    <!-- construction site (top left) -->
+    <rect x="12" y="62" width="60" height="58" rx="8" class="zm-bld zm-site"/>
+    <text x="42" y="95" class="zm-bld-sub">obras</text>
+    <!-- IEB: the building sits back from the street, with gardens in front -->
+    <rect x="12" y="140" width="96" height="258" rx="8" class="zm-lawn"/>
+    <rect x="16" y="146" width="62" height="150" rx="6" class="zm-bld zm-ieb"/>
+    <rect x="22" y="152" width="14" height="14" rx="2" class="zm-tower"/>
+    <rect x="58" y="152" width="14" height="14" rx="2" class="zm-tower"/>
+    <rect x="22" y="276" width="14" height="14" rx="2" class="zm-tower"/>
+    <rect x="58" y="276" width="14" height="14" rx="2" class="zm-tower"/>
+    <text x="47" y="222" class="zm-bld-label">IEB</text>
+    <text x="47" y="240" class="zm-bld-sub">🏛️</text>
+    <text x="60" y="345" class="zm-bld-sub">jardín</text>
+    <path d="M78,236 H110" class="zm-steps"/>
+    <circle cx="96" cy="160" r="5" class="zm-tree"/><circle cx="98" cy="176" r="5" class="zm-tree"/>
+    <circle cx="96" cy="192" r="5" class="zm-tree"/><circle cx="30" cy="318" r="6" class="zm-tree"/>
+    <circle cx="88" cy="372" r="6" class="zm-tree"/>
     <!-- residences + NIDO: one building that wraps the right side of the roundabout -->
-    <path d="M152,448 V163 A63,63 0 0 0 161.5,49.4 L161.5,14 H314 V448 Z" class="zm-bld"/>
-    <text x="236" y="262" class="zm-bld-label small">Residencias</text>
-    <text x="236" y="282" class="zm-bld-label">NIDO</text>
-    <!-- roads -->
+    <path d="M154,448 V165 A61,61 0 0 0 161.5,51 L161.5,14 H314 V448 Z" class="zm-bld"/>
+    <rect x="186" y="36" width="44" height="54" rx="4" class="zm-yard"/>
+    <rect x="248" y="120" width="44" height="70" rx="4" class="zm-yard"/>
+    <text x="236" y="236" class="zm-bld-label small">Residencias</text>
+    <path d="M154,330 H314" class="zm-split"/>
+    <rect x="166" y="368" width="34" height="22" rx="3" class="zm-nido-logo"/>
+    <text x="183" y="377" class="zm-nido-logo-t">NI</text><text x="183" y="386" class="zm-nido-logo-t">DO</text>
+    <text x="250" y="384" class="zm-bld-label">NIDO</text>
+    <text x="250" y="400" class="zm-bld-sub">Student</text>
+    <!-- sidewalks, then roads -->
+    <path d="M338,476 H170 Q130,476 130,436 V144" class="zm-walk"/>
+    <circle cx="130" cy="104" r="40" class="zm-walk zm-ring-walk"/>
+    <path d="M130,66 V0" class="zm-walk"/>
     <path d="M338,0 V520" class="zm-road zm-avenue"/>
+    <path d="M349,0 V520" class="zm-lane"/>
     <path d="M338,476 H170 Q130,476 130,436 V144" class="zm-road"/>
     <circle cx="130" cy="104" r="40" class="zm-road zm-ring"/>
     <path d="M130,66 V0" class="zm-road"/>
     <circle cx="130" cy="104" r="22" class="zm-island"/>
-    <!-- garage ramp -->
-    <rect x="58" y="395" width="48" height="24" rx="5" class="zm-garage"/>
-    <text x="82" y="411" class="zm-garage-label">Garaje</text>
+    <!-- IEB underground garage ramp, entered from the street -->
+    <path d="M112,402 L74,396 L74,424 L112,420 Z" class="zm-garage"/>
+    <path d="M104,411 H82 M88,405 L82,411 L88,417" class="zm-garage-arrow"/>
+    <text x="70" y="440" class="zm-garage-label-out">Garaje IEB</text>
     <!-- labels -->
-    <text x="338" y="260" class="zm-street-label" transform="rotate(90 338 260)">Avenida</text>
+    <text x="333" y="260" class="zm-street-label" transform="rotate(90 333 260)">Avenida</text>
     <text x="300" y="498" class="zm-hint">↑ entrada</text>
   `;
 
