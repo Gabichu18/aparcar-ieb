@@ -9,25 +9,24 @@
   const BACKGROUND = `
     <rect x="0" y="0" width="360" height="520" class="zm-ground"/>
     <!-- buildings -->
-    <rect x="18" y="150" width="112" height="112" rx="10" class="zm-bld zm-ieb"/>
-    <text x="74" y="200" class="zm-bld-label">IEB</text>
-    <text x="74" y="218" class="zm-bld-sub">🏛️</text>
-    <rect x="214" y="150" width="84" height="150" rx="10" class="zm-bld"/>
-    <text x="256" y="222" class="zm-bld-label small">Residencias</text>
-    <rect x="140" y="340" width="150" height="104" rx="10" class="zm-bld"/>
-    <text x="215" y="398" class="zm-bld-label">NIDO</text>
-    <rect x="60" y="88" width="56" height="44" rx="8" class="zm-bld zm-site"/>
-    <text x="88" y="114" class="zm-bld-sub">obras</text>
+    <rect x="14" y="80" width="56" height="44" rx="8" class="zm-bld zm-site"/>
+    <text x="42" y="106" class="zm-bld-sub">obras</text>
+    <rect x="14" y="158" width="90" height="292" rx="10" class="zm-bld zm-ieb"/>
+    <text x="59" y="290" class="zm-bld-label">IEB</text>
+    <text x="59" y="310" class="zm-bld-sub">🏛️</text>
+    <!-- residences + NIDO: one building that wraps the right side of the roundabout -->
+    <path d="M152,448 V163 A63,63 0 0 0 161.5,49.4 L161.5,14 H314 V448 Z" class="zm-bld"/>
+    <text x="236" y="262" class="zm-bld-label small">Residencias</text>
+    <text x="236" y="282" class="zm-bld-label">NIDO</text>
     <!-- roads -->
     <path d="M338,0 V520" class="zm-road zm-avenue"/>
-    <path d="M338,476 H176 Q112,476 112,412 V318 Q112,284 146,276 Q186,266 186,226 V144" class="zm-road"/>
-    <circle cx="186" cy="104" r="40" class="zm-road zm-ring"/>
-    <path d="M186,66 V0" class="zm-road"/>
-    <circle cx="186" cy="104" r="22" class="zm-island"/>
+    <path d="M338,476 H170 Q130,476 130,436 V144" class="zm-road"/>
+    <circle cx="130" cy="104" r="40" class="zm-road zm-ring"/>
+    <path d="M130,66 V0" class="zm-road"/>
+    <circle cx="130" cy="104" r="22" class="zm-island"/>
     <!-- garage ramp -->
-    <rect x="44" y="314" width="50" height="26" rx="5" class="zm-garage"/>
-    <text x="69" y="331" class="zm-garage-label">Garaje</text>
-    <path d="M94,327 H104" class="zm-arrow"/>
+    <rect x="58" y="395" width="48" height="24" rx="5" class="zm-garage"/>
+    <text x="82" y="411" class="zm-garage-label">Garaje</text>
     <!-- labels -->
     <text x="338" y="260" class="zm-street-label" transform="rotate(90 338 260)">Avenida</text>
     <text x="300" y="498" class="zm-hint">↑ entrada</text>
