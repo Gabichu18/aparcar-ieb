@@ -131,11 +131,16 @@ async function main() {
       return res.status(429).json({ error: 'Has pedido demasiados códigos. Inténtalo más tarde.' });
     }
     const code = String(crypto.randomInt(0, 1e6)).padStart(6, '0');
+    const codeHash = sha(email + ':' + code);
     await db.run('INSERT INTO login_codes (email, code_hash, expires_at, created_at) VALUES (?, ?, ?, ?)',
-      email, sha(email + ':' + code), now() + LIMITS.codeMinutes * 60e3, now());
+      email, codeHash, now() + LIMITS.codeMinutes * 60e3, now());
     const ok = await sendMail(email, `Tu código de Aparcar IEB: ${code}`,
       `Tu código para entrar es ${code}. Caduca en ${LIMITS.codeMinutes} minutos.\n\nSi no lo has pedido tú, ignora este email.`);
-    if (!ok) return res.status(502).json({ error: 'No se pudo enviar el email. Inténtalo en unos minutos.' });
+    if (!ok) {
+      // Don't count a code that never reached the student against their hourly limit.
+      await db.run('DELETE FROM login_codes WHERE email = ? AND code_hash = ?', email, codeHash);
+      return res.status(502).json({ error: 'No se pudo enviar el email. Inténtalo en unos minutos.' });
+    }
     res.json({ ok: true });
   }));
 
