@@ -1,0 +1,20 @@
+{
+  "name": "aparcar-ieb",
+  "version": "1.0.0",
+  "description": "Notify IEB students when their parked car is blocking someone",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --no-warnings server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.22.3",
+    "nodemailer": "^10.6.0",
+    "web-push": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "private": true
+}

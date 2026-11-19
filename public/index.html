@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Aparcar IEB</title>
+  <meta name="theme-color" content="#0f5132">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Aparcar IEB">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="/icon.svg" alt="" width="28" height="28"> Aparcar IEB</div>
+    <button id="logoutBtn" class="link hidden">Cerrar sesión</button>
+  </header>
+
+  <!-- Sign in -->
+  <main id="loginView" class="view hidden">
+    <section class="card">
+      <h1>¿Te han bloqueado? Avisa al conductor.</h1>
+      <p class="muted">Entra con tu email de la universidad. Te enviaremos un código de 6 dígitos.</p>
+      <form id="emailForm">
+        <label>Email de la universidad
+          <input id="email" type="email" autocomplete="email" required placeholder="nombre@alumni-ieb.es">
+        </label>
+        <button class="primary" type="submit">Enviar código</button>
+      </form>
+      <form id="codeForm" class="hidden">
+        <label>Código enviado a <b id="codeEmail"></b>
+          <input id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required placeholder="123456">
+        </label>
+        <button class="primary" type="submit">Entrar</button>
+        <button class="link" type="button" id="backToEmail">Usar otro email</button>
+      </form>
+      <p id="devNote" class="note hidden">Modo de prueba: el código aparece en la consola del servidor.</p>
+    </section>
+  </main>
+
+  <!-- App -->
+  <main id="appView" class="view hidden">
+    <!-- Send alert -->
+    <section id="tab-alert" class="tab">
+      <h1>¿Alguien te bloquea?</h1>
+      <form id="alertForm">
+        <fieldset>
+          <legend>1. ¿Dónde estás aparcado?</legend>
+          <div id="zoneList" class="zones"></div>
+        </fieldset>
+        <label>2. Matrícula del coche que te bloquea
+          <input id="alertPlate" class="plate" required autocapitalize="characters" autocomplete="off" placeholder="1234 ABC" maxlength="12">
+        </label>
+        <label>3. Nota (opcional)
+          <input id="alertNote" maxlength="140" placeholder="p. ej. Coche gris delante de la rampa del garaje">
+        </label>
+        <button class="primary big" type="submit">Enviar aviso</button>
+      </form>
+      <div id="alertResult" class="result hidden"></div>
+    </section>
+
+    <!-- Activity -->
+    <section id="tab-activity" class="tab hidden">
+      <h2 id="incoming">Avisos sobre mis coches</h2>
+      <div id="incomingList" class="list"></div>
+      <h2 id="sent">Avisos que he enviado</h2>
+      <div id="sentList" class="list"></div>
+      <p class="muted small">Avisos de las últimas 24 horas. Los avisos se borran a los 30 días.</p>
+    </section>
+
+    <!-- My cars -->
+    <section id="tab-cars" class="tab hidden">
+      <h2>Mis coches</h2>
+      <p class="muted">Registra tu matrícula para que tus compañeros puedan avisarte si les bloqueas. Nadie puede ver tu nombre ni tu email.</p>
+      <div id="plateList" class="list"></div>
+      <form id="plateForm" class="row">
+        <input id="newPlate" class="plate" required autocapitalize="characters" autocomplete="off" placeholder="1234 ABC" maxlength="12">
+        <input id="newLabel" maxlength="40" placeholder="Etiqueta (opcional)">
+        <button class="primary" type="submit">Añadir</button>
+      </form>
+
+      <h2>Notificaciones</h2>
+      <div id="pushStatus" class="note"></div>
+      <div class="row">
+        <button id="enablePush" class="primary">Activar notificaciones</button>
+        <button id="testPush" class="secondary">Enviarme una prueba</button>
+      </div>
+      <p id="iosHint" class="note hidden">En iPhone: pulsa <b>Compartir</b> → <b>Añadir a pantalla de inicio</b>, abre la app desde ahí y activa las notificaciones. También recibirás los avisos por email.</p>
+
+      <h2>Cuenta</h2>
+      <p class="muted small">Has entrado como <span id="meEmail"></span>.</p>
+      <button id="deleteAccount" class="danger">Borrar mi cuenta y mis datos</button>
+    </section>
+  </main>
+
+  <nav id="tabs" class="tabs hidden">
+    <button data-tab="alert" class="active"><span>📣</span>Avisar</button>
+    <button data-tab="activity"><span>🔔</span>Actividad<i id="badge" class="badge hidden"></i></button>
+    <button data-tab="cars"><span>🚗</span>Mis coches</button>
+  </nav>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
