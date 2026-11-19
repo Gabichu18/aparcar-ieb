@@ -6,16 +6,16 @@ module.exports = [
   {
     id: 'nido-street',
     name: 'Calle de NIDO',
-    description: 'Desde la avenida, a lo largo de la residencia NIDO, hasta la esquina del garaje.',
+    description: 'Desde la avenida, a lo largo de la residencia NIDO, hasta el cruce con el garaje del IEB.',
     shape: 'line',
-    path: 'M318,476 H170 Q130,476 130,436 V414',
+    path: 'M318,476 H150',
   },
   {
     id: 'ieb-street',
     name: 'Calle principal del IEB',
-    description: 'Tras girar a la derecha: la calle recta entre el IEB y la residencia, hasta la rotonda.',
+    description: 'En el cruce, girando a la derecha: la calle recta entre el IEB y la residencia, hasta la rotonda.',
     shape: 'line',
-    path: 'M130,398 V158',
+    path: 'M130,452 V158',
   },
   {
     id: 'plaza',

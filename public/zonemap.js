@@ -12,19 +12,20 @@
     <rect x="12" y="62" width="60" height="58" rx="8" class="zm-bld zm-site"/>
     <text x="42" y="95" class="zm-bld-sub">obras</text>
     <!-- IEB: the building sits back from the street, with gardens in front -->
-    <rect x="12" y="140" width="96" height="258" rx="8" class="zm-lawn"/>
-    <rect x="16" y="146" width="62" height="150" rx="6" class="zm-bld zm-ieb"/>
-    <rect x="22" y="152" width="14" height="14" rx="2" class="zm-tower"/>
-    <rect x="58" y="152" width="14" height="14" rx="2" class="zm-tower"/>
-    <rect x="22" y="276" width="14" height="14" rx="2" class="zm-tower"/>
-    <rect x="58" y="276" width="14" height="14" rx="2" class="zm-tower"/>
-    <text x="47" y="222" class="zm-bld-label">IEB</text>
-    <text x="47" y="240" class="zm-bld-sub">🏛️</text>
-    <text x="60" y="345" class="zm-bld-sub">jardín</text>
-    <path d="M78,236 H110" class="zm-steps"/>
-    <circle cx="96" cy="160" r="5" class="zm-tree"/><circle cx="98" cy="176" r="5" class="zm-tree"/>
-    <circle cx="96" cy="192" r="5" class="zm-tree"/><circle cx="30" cy="318" r="6" class="zm-tree"/>
-    <circle cx="88" cy="372" r="6" class="zm-tree"/>
+    <rect x="6" y="162" width="104" height="284" rx="8" class="zm-lawn"/>
+    <rect x="10" y="168" width="80" height="196" rx="6" class="zm-bld zm-ieb"/>
+    <rect x="16" y="174" width="16" height="16" rx="2" class="zm-tower"/>
+    <rect x="68" y="174" width="16" height="16" rx="2" class="zm-tower"/>
+    <rect x="16" y="342" width="16" height="16" rx="2" class="zm-tower"/>
+    <rect x="68" y="342" width="16" height="16" rx="2" class="zm-tower"/>
+    <rect x="34" y="240" width="32" height="40" rx="3" class="zm-yard"/>
+    <text x="50" y="226" class="zm-bld-label">IEB</text>
+    <text x="50" y="310" class="zm-bld-sub">🏛️</text>
+    <text x="50" y="405" class="zm-bld-sub">jardín</text>
+    <path d="M90,270 H112" class="zm-steps"/>
+    <circle cx="100" cy="180" r="5" class="zm-tree"/><circle cx="101" cy="196" r="5" class="zm-tree"/>
+    <circle cx="100" cy="212" r="5" class="zm-tree"/><circle cx="24" cy="382" r="6" class="zm-tree"/>
+    <circle cx="92" cy="420" r="6" class="zm-tree"/>
     <!-- residences + NIDO: one building that wraps the right side of the roundabout -->
     <path d="M154,448 V165 A61,61 0 0 0 161.5,51 L161.5,14 H314 V448 Z" class="zm-bld"/>
     <rect x="186" y="36" width="44" height="54" rx="4" class="zm-yard"/>
@@ -36,19 +37,21 @@
     <text x="250" y="384" class="zm-bld-label">NIDO</text>
     <text x="250" y="400" class="zm-bld-sub">Student</text>
     <!-- sidewalks, then roads -->
-    <path d="M338,476 H170 Q130,476 130,436 V144" class="zm-walk"/>
+    <path d="M338,476 H96" class="zm-walk"/>
+    <path d="M130,476 V144" class="zm-walk"/>
     <circle cx="130" cy="104" r="40" class="zm-walk zm-ring-walk"/>
     <path d="M130,66 V0" class="zm-walk"/>
     <path d="M338,0 V520" class="zm-road zm-avenue"/>
     <path d="M349,0 V520" class="zm-lane"/>
-    <path d="M338,476 H170 Q130,476 130,436 V144" class="zm-road"/>
+    <path d="M338,476 H96" class="zm-road"/>
+    <path d="M130,476 V144" class="zm-road"/>
     <circle cx="130" cy="104" r="40" class="zm-road zm-ring"/>
     <path d="M130,66 V0" class="zm-road"/>
     <circle cx="130" cy="104" r="22" class="zm-island"/>
-    <!-- IEB underground garage ramp, entered from the street -->
-    <path d="M112,402 L74,396 L74,424 L112,420 Z" class="zm-garage"/>
-    <path d="M104,411 H82 M88,405 L82,411 L88,417" class="zm-garage-arrow"/>
-    <text x="70" y="440" class="zm-garage-label-out">Garaje IEB</text>
+    <!-- IEB underground garage: straight on at the end of the NIDO street -->
+    <path d="M100,461 L56,456 L56,496 L100,491 Z" class="zm-garage"/>
+    <path d="M92,476 H66 M73,469 L66,476 L73,483" class="zm-garage-arrow"/>
+    <text x="56" y="512" class="zm-garage-label-out">Garaje IEB</text>
     <!-- labels -->
     <text x="333" y="260" class="zm-street-label" transform="rotate(90 333 260)">Avenida</text>
     <text x="300" y="498" class="zm-hint">↑ entrada</text>
