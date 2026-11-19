@@ -25,7 +25,7 @@ const LIMITS = {
   maxPlatesPerUser: 3,
   sessionDays: 180,
   spotReportsPerHour: 20,
-  remindMinutes: Number(process.env.REMIND_MINUTES || 5),
+  remindMinutes: Number(process.env.REMIND_MINUTES || 2),
   escalateMinutes: Number(process.env.ESCALATE_MINUTES || 10),
   spotReportHours: 3,      // a "free / full" answer is shown for 3 hours
 };
@@ -387,7 +387,7 @@ async function main() {
   setInterval(() => checkinTick().catch(console.error), 60e3).unref();
 
   // ---------- Reminders: owner hasn't answered ----------
-  // 5 min with no answer: remind the owner. 10 min: tell the reporter to try the front desk / security.
+  // 2 min with no answer: remind the owner. 10 min: tell the reporter to try the front desk / security.
   async function alertTick() {
     const t = now();
     const toRemind = await db.all("SELECT * FROM alerts WHERE status = 'notified' AND reminded IS NULL AND created_at < ? AND created_at > ?",
