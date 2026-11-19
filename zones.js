@@ -1,6 +1,7 @@
 // Parking zones around IEB, drawn as a sketch from the Google Earth pictures (green areas).
 // `path` is the SVG shape on the drawn map (viewBox 0 0 360 520, see public/zonemap.js).
 // `shape`: 'line' = street with parking along it, 'area' = filled area.
+// `parts`: words for the start, middle and end of a street (used to describe the exact spot).
 // Ids must stay stable once the app is in use (old alerts refer to them).
 module.exports = [
   {
@@ -9,6 +10,7 @@ module.exports = [
     description: 'Desde la avenida, a lo largo de la residencia NIDO, hasta el cruce con el garaje del IEB.',
     shape: 'line',
     path: 'M318,476 H150',
+    parts: ['junto a la avenida', 'a mitad de la calle', 'junto al cruce del garaje'],
   },
   {
     id: 'ieb-street',
@@ -16,6 +18,7 @@ module.exports = [
     description: 'En el cruce, girando a la derecha: la calle recta entre el IEB y la residencia, hasta la rotonda.',
     shape: 'line',
     path: 'M130,452 V158',
+    parts: ['al principio, junto al cruce', 'a mitad de la calle', 'al final, junto a la rotonda'],
   },
   {
     id: 'plaza',
@@ -37,5 +40,6 @@ module.exports = [
     description: 'La calle que sigue recta después de la rotonda.',
     shape: 'line',
     path: 'M130,52 V12',
+    parts: ['justo al salir de la rotonda', 'a mitad del tramo', 'al final del tramo'],
   },
 ];

@@ -57,12 +57,29 @@
     <text x="300" y="498" class="zm-hint">↑ entrada</text>
   `;
 
-  function create(el, { zones, onSelect }) {
-    el.innerHTML = `<svg viewBox="0 0 360 520" class="zm" role="group" aria-label="Mapa de zonas de aparcamiento">
-      ${BACKGROUND}<g class="zm-zones"></g><g class="zm-labels"></g></svg>`;
+  // Pin marker whose tip sits exactly on (x, y).
+  const PIN = (x, y) => `<g class="zm-pin" transform="translate(${x} ${y})">
+    <ellipse cx="0" cy="0" rx="5" ry="2.2" class="zm-pin-shadow"/>
+    <path d="M0,0 C-3,-8 -10,-12 -10,-20 A10,10 0 1 1 10,-20 C10,-12 3,-8 0,0 Z" class="zm-pin-body"/>
+    <circle cx="0" cy="-20" r="4" class="zm-pin-dot"/></g>`;
+
+  // options: zones, onSelect(zoneId, spot|null), readOnly, view ([x, y, w, h] to zoom in)
+  function create(el, { zones, onSelect, readOnly, view }) {
+    const vb = view || [0, 0, 360, 520];
+    el.innerHTML = `<svg viewBox="${vb.join(' ')}" class="zm${readOnly ? ' zm-readonly' : ''}" ${readOnly ? 'aria-hidden="true"' : 'role="group" aria-label="Mapa de zonas de aparcamiento"'}>
+      ${BACKGROUND}<g class="zm-zones"></g><g class="zm-labels"></g><g class="zm-pins"></g></svg>`;
+    const svg = el.querySelector('svg');
     const gZones = el.querySelector('.zm-zones');
     const gLabels = el.querySelector('.zm-labels');
+    const gPins = el.querySelector('.zm-pins');
     const nodes = {};
+
+    // Screen tap -> map coordinates.
+    const toMap = (e) => {
+      const m = svg.getScreenCTM(); if (!m || !e.clientX) return null;
+      const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+      const q = pt.matrixTransform(m.inverse()); return { x: q.x, y: q.y };
+    };
 
     zones.forEach((z, i) => {
       let shape;
@@ -74,17 +91,28 @@
         shape.setAttribute('d', z.path);
       }
       shape.setAttribute('class', `zm-zone zm-${z.shape === 'area' ? 'fill' : 'line'}`);
-      shape.setAttribute('tabindex', '0');
-      shape.setAttribute('role', 'button');
-      shape.setAttribute('aria-label', z.name);
+      if (!readOnly) {
+        shape.setAttribute('tabindex', '0');
+        shape.setAttribute('role', 'button');
+        shape.setAttribute('aria-label', z.name);
+      }
       const title = document.createElementNS(NS, 'title'); title.textContent = z.name; shape.appendChild(title);
-      const pick = () => { api.select(z.id); onSelect && onSelect(z.id); };
-      shape.addEventListener('click', pick);
-      shape.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+      // Tap on a zone: select it and drop the pin on the exact spot.
+      const pick = (e) => {
+        const p = e && toMap(e);
+        const spot = p && window.Spot ? window.Spot.snap(z, p.x, p.y) : null;
+        api.select(z.id, spot);
+        onSelect && onSelect(z.id, spot);
+      };
+      if (!readOnly) {
+        shape.addEventListener('click', pick);
+        shape.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(null); } });
+      }
       gZones.appendChild(shape);
-      nodes[z.id] = shape;
+      nodes[z.id] = { shape, pick };
 
       // Number badge placed on the shape so people can match it with the buttons below.
+      if (readOnly) return;
       const len = shape.getTotalLength ? shape.getTotalLength() : 0;
       let p = { x: z.cx, y: z.cy };
       if (z.shape === 'ring') p = { x: z.cx + z.r * 0.71, y: z.cy - z.r * 0.71 };
@@ -92,18 +120,29 @@
       gLabels.insertAdjacentHTML('beforeend',
         `<g class="zm-badge" data-zone="${esc(z.id)}"><circle cx="${p.x}" cy="${p.y}" r="10"/><text x="${p.x}" y="${p.y + 4}">${i + 1}</text></g>`);
     });
-    gLabels.querySelectorAll('.zm-badge').forEach((b) => b.addEventListener('click', () => nodes[b.dataset.zone].dispatchEvent(new Event('click'))));
+    gLabels.querySelectorAll('.zm-badge').forEach((b) => b.addEventListener('click', (e) => nodes[b.dataset.zone].pick(e)));
 
     const api = {
       hasShapes: true,
-      select(id) {
-        for (const [zid, n] of Object.entries(nodes)) n.classList.toggle('selected', zid === id);
-        gLabels.querySelectorAll('.zm-badge').forEach((b) => b.classList.toggle('selected', b.dataset.zone === id));
+      select(id, spot) {
+        for (const [zid, n] of Object.entries(nodes)) n.shape.classList.toggle('selected', zid === id);
+        gLabels.querySelectorAll('.zm-badge').forEach((b) => {
+          b.classList.toggle('selected', b.dataset.zone === id);
+          b.classList.toggle('hidden', !!spot && b.dataset.zone === id); // the pin replaces the number
+        });
+        gPins.innerHTML = spot ? PIN(spot.x, spot.y) : '';
       },
       refresh() {},
     };
     return api;
   }
 
-  window.ZoneMap = { create };
+  // A zoomed-in view centred on a spot (for showing an alert's location).
+  function viewAround(x, y, w = 280, h = 180) {
+    const vx = Math.max(0, Math.min(360 - w, x - w / 2));
+    const vy = Math.max(0, Math.min(520 - h, y - h / 2 - 10));
+    return [vx, vy, w, h];
+  }
+
+  window.ZoneMap = { create, viewAround };
 })();

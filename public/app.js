@@ -2,6 +2,7 @@
 const $ = (s) => document.querySelector(s);
 let config = null;
 let selectedZone = null;
+let selectedSpot = null;
 
 async function api(path, opts = {}) {
   const res = await fetch(path, {
@@ -84,9 +85,15 @@ $('#logoutBtn').addEventListener('click', async () => {
 
 // ---------- Send alert ----------
 let zoneMap = null;
-function selectZone(id) {
+function selectZone(id, spot) {
   selectedZone = id;
-  if (zoneMap) zoneMap.select(id);
+  selectedSpot = spot || null;
+  if (zoneMap) zoneMap.select(id, selectedSpot);
+  const info = $('#spotInfo');
+  info.classList.toggle('chosen', !!selectedSpot);
+  info.innerHTML = !id ? 'Toca la calle donde estás aparcado: pondremos un 📍 en el sitio exacto.'
+    : selectedSpot ? `📍 <b>${esc(zoneName(id))}</b>, ${esc(selectedSpot.label)}. <span class="muted">Toca otra vez para moverlo.</span>`
+    : `<b>${esc(zoneName(id))}</b>. Si quieres, toca en el mapa el sitio exacto para poner el 📍.`;
   $('#zoneChips').querySelectorAll('.chip').forEach((c) => {
     const on = c.dataset.zone === id;
     c.classList.toggle('selected', on); c.setAttribute('aria-checked', on);
@@ -104,7 +111,7 @@ $('#alertForm').addEventListener('submit', async (e) => {
   if (!selectedZone) return toast('Elige primero la zona.');
   try {
     const plate = $('#alertPlate').value;
-    const res = await api('/api/alerts', { body: { zone: selectedZone, plate, note: $('#alertNote').value } });
+    const res = await api('/api/alerts', { body: { zone: selectedZone, spot: selectedSpot, plate, note: $('#alertNote').value } });
     r.classList.remove('hidden', 'ok', 'warn');
     if (res.status === 'notified') {
       r.classList.add('ok');
@@ -113,7 +120,7 @@ $('#alertForm').addEventListener('submit', async (e) => {
       r.classList.add('warn');
       r.textContent = 'Esta matrícula no está registrada en la app, así que no podemos avisar al dueño. Prueba con recepción o seguridad del campus.';
     }
-    $('#alertPlate').value = ''; $('#alertNote').value = '';
+    $('#alertPlate').value = ''; $('#alertNote').value = ''; selectZone(null);
   } catch (err) { toast(err.message); }
 });
 
@@ -124,7 +131,8 @@ async function loadAlerts() {
     $('#incomingList').innerHTML = incoming.length ? incoming.map((a) => `
       <div class="item">
         <div class="head"><span class="plate-tag">${esc(fmtPlate(a.plate))}</span><span class="pill ${a.status}">${STATUS[a.status]}</span></div>
-        <div>Bloqueando a alguien en <b>${esc(zoneName(a.zone))}</b></div>
+        <div>Bloqueando a alguien en <b>${esc(zoneName(a.zone))}</b>${a.spot ? `, ${esc(a.spot)}` : ''}</div>
+        ${a.spot_x != null ? `<div class="mini-map" data-x="${a.spot_x}" data-y="${a.spot_y}" data-zone="${esc(a.zone)}"></div>` : ''}
         ${a.note ? `<div class="meta">“${esc(a.note)}”</div>` : ''}
         <div class="meta">${ago(a.created_at)}</div>
         ${a.status === 'moved' ? '' : `<div class="actions">
@@ -135,8 +143,12 @@ async function loadAlerts() {
     $('#sentList').innerHTML = sent.length ? sent.map((a) => `
       <div class="item">
         <div class="head"><span class="plate-tag">${esc(fmtPlate(a.plate))}</span><span class="pill ${a.status}">${STATUS[a.status]}</span></div>
-        <div class="meta">${esc(zoneName(a.zone))} · ${ago(a.created_at)}</div>
+        <div class="meta">${esc(zoneName(a.zone))}${a.spot ? `, ${esc(a.spot)}` : ''} · ${ago(a.created_at)}</div>
       </div>`).join('') : '<div class="empty">No has enviado ningún aviso.</div>';
+    $('#incomingList').querySelectorAll('.mini-map').forEach((m) => {
+      const x = Number(m.dataset.x), y = Number(m.dataset.y);
+      ZoneMap.create(m, { zones: config.zones, readOnly: true, view: ZoneMap.viewAround(x, y) }).select(m.dataset.zone, { x, y });
+    });
     $('#incomingList').querySelectorAll('[data-respond]').forEach((b) => b.addEventListener('click', async () => {
       try {
         await api(`/api/alerts/${b.dataset.id}/respond`, { body: { status: b.dataset.respond } });

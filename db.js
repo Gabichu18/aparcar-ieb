@@ -63,6 +63,9 @@ const TABLES = (pg) => `
   );
 `;
 
+// Columns added after the first version (added automatically to existing databases).
+const NEW_COLUMNS = [['spot_x', 'REAL'], ['spot_y', 'REAL'], ['spot', 'TEXT']];
+
 async function openDb() {
   if (process.env.DATABASE_URL) {
     const { Pool, types } = require('pg');
@@ -78,6 +81,7 @@ async function openDb() {
       async run(sql, ...p) { await pool.query(toPg(sql), p); },
     };
     await pool.query(TABLES(true));
+    for (const [col, type] of NEW_COLUMNS) await pool.query(`ALTER TABLE alerts ADD COLUMN IF NOT EXISTS ${col} ${type}`);
     return db;
   }
 
@@ -87,6 +91,8 @@ async function openDb() {
   const s = new DatabaseSync(path.join(dir, 'app.db'));
   s.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
   s.exec(TABLES(false));
+  const have = s.prepare('PRAGMA table_info(alerts)').all().map((c) => c.name);
+  for (const [col, type] of NEW_COLUMNS) if (!have.includes(col)) s.exec(`ALTER TABLE alerts ADD COLUMN ${col} ${type}`);
   return {
     kind: 'sqlite',
     async all(sql, ...p) { return s.prepare(sql).all(...p); },

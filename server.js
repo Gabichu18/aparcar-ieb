@@ -4,6 +4,7 @@ const path = require('node:path');
 const express = require('express');
 const webpush = require('web-push');
 const zones = require('./zones');
+const Spot = require('./public/spot');
 const { openDb } = require('./db');
 const { sendMail, mailMode } = require('./mail');
 const telegram = require('./telegram');
@@ -241,7 +242,9 @@ async function main() {
     const zone = String(req.body.zone || '');
     const note = String(req.body.note || '').trim().slice(0, 140);
     if (!validPlate(plate)) return res.status(400).json({ error: 'Introduce una matrícula válida.' });
-    if (!zones.some((z) => z.id === zone)) return res.status(400).json({ error: 'Elige una zona.' });
+    const zoneDef = zones.find((z) => z.id === zone);
+    if (!zoneDef) return res.status(400).json({ error: 'Elige una zona.' });
+    const spot = req.body.spot ? Spot.snap(zoneDef, req.body.spot.x, req.body.spot.y) : null;
 
     const sentLastHour = Number((await db.get('SELECT COUNT(*) AS n FROM alerts WHERE reporter_id = ? AND created_at > ?',
       req.user.id, now() - 3600e3)).n);
@@ -265,12 +268,13 @@ async function main() {
 
     const status = owner ? 'notified' : 'not_registered';
     const inserted = await db.get(
-      'INSERT INTO alerts (reporter_id, owner_id, plate, zone, note, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
-      req.user.id, owner ? owner.user_id : null, plate, zone, note, status, now(), now());
+      'INSERT INTO alerts (reporter_id, owner_id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
+      req.user.id, owner ? owner.user_id : null, plate, zone, note, status, now(), now(),
+      spot ? spot.x : null, spot ? spot.y : null, spot ? spot.label : null);
     const alertId = Number(inserted.id);
 
     if (owner) {
-      const body = `Tu coche ${plate} está bloqueando a alguien en ${zoneName(zone)}.${note ? ' Nota: ' + note : ''}`;
+      const body = `Tu coche ${plate} está bloqueando a alguien en ${zoneName(zone)}${spot ? ' (' + spot.label + ')' : ''}.${note ? ' Nota: ' + note : ''}`;
       await Promise.all([
         pushToUser(owner.user_id, { title: '🚗 Por favor, mueve tu coche', body, url: '/#incoming', alertId, requireInteraction: true }),
         sendMail(owner.email, `Tu coche ${plate} está bloqueando a alguien`,
@@ -285,10 +289,10 @@ async function main() {
   app.get('/api/alerts', auth, h(async (req, res) => {
     const since = now() - 86400e3;
     const sent = await db.all(
-      'SELECT id, plate, zone, note, status, created_at, updated_at FROM alerts WHERE reporter_id = ? AND created_at > ? ORDER BY created_at DESC',
+      'SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot FROM alerts WHERE reporter_id = ? AND created_at > ? ORDER BY created_at DESC',
       req.user.id, since);
     const incoming = await db.all(
-      "SELECT id, plate, zone, note, status, created_at, updated_at FROM alerts WHERE owner_id = ? AND created_at > ? AND status <> 'not_registered' ORDER BY created_at DESC",
+      "SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot FROM alerts WHERE owner_id = ? AND created_at > ? AND status <> 'not_registered' ORDER BY created_at DESC",
       req.user.id, since);
     res.json({ sent, incoming });
   }));
@@ -306,7 +310,7 @@ async function main() {
     await db.run('UPDATE alerts SET status = ?, updated_at = ? WHERE id = ?', status, now(), alert.id);
     if (alert.reporter_id) {
       const title = status === 'coming' ? 'El dueño va de camino' : 'El coche ya se ha movido';
-      const body = `${alert.plate} en ${zoneName(alert.zone)}`;
+      const body = `${alert.plate} en ${zoneName(alert.zone)}${alert.spot ? ' (' + alert.spot + ')' : ''}`;
       await Promise.all([
         pushToUser(alert.reporter_id, { title, body, url: '/#sent' }),
         telegramToUser(alert.reporter_id, (chat) => telegram.sendText(chat, `${status === 'coming' ? '🚶' : '✅'} ${title}: ${body}`)),
