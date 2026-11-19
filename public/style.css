@@ -144,3 +144,6 @@ input.plate::placeholder { font-weight: 400; letter-spacing: .05em; color: var(-
 .guide-steps li.gone { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; border-top-color: transparent; }
 .guide-btn { margin-top: 10px; width: 100%; }
 .guide-done { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: #d1fadf; color: #05603a; font-weight: 700; }
+.zm-wide-road { stroke-width: 42; }
+.zm-wide-walk { stroke-width: 48; }
+.zm-centerline { fill: none; stroke: #fff; stroke-width: 1.5; stroke-dasharray: 8 6; stroke-opacity: .9; pointer-events: none; }

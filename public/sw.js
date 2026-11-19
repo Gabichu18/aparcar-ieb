@@ -1,5 +1,5 @@
 // Service worker: shows push notifications and caches the app shell.
-const CACHE = 'aparcar-v6';
+const CACHE = 'aparcar-v7';
 const SHELL = ['/', '/style.css', '/app.js', '/spot.js', '/zonemap.js', '/icon.svg', '/icon-192.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

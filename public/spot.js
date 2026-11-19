@@ -48,13 +48,22 @@
         const t = Math.max(0, Math.min(1, ((x - a.x) * (b.x - a.x) + (y - a.y) * (b.y - a.y)) / (len * len)));
         const q = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
         const dist = Math.hypot(x - q.x, y - q.y);
-        if (!best || dist < best.dist) best = { ...q, dist, along: walked + t * len };
+        // Which side of the street: >0 = right of the direction of travel on screen.
+        const cross = ((b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x)) / len;
+        const nx = -(b.y - a.y) / len, ny = (b.x - a.x) / len; // unit vector to the right-hand side
+        if (!best || dist < best.dist) best = { ...q, dist, along: walked + t * len, cross, nx, ny };
         walked += len;
       }
       if (!best || best.dist > maxDist) return null;
-      p = best;
+      p = { x: best.x, y: best.y };
       const parts = z.parts || ['al principio', 'a mitad de la calle', 'al final'];
       label = parts[Math.min(parts.length - 1, Math.floor(best.along / (total || 1) * parts.length))];
+      if (z.sides) {
+        // Put the pin on the side of the street that was tapped (a quarter of the width from the middle).
+        const right = best.cross > 0, off = (z.width || 30) / 4 * (right ? 1 : -1);
+        p = { x: p.x + best.nx * off, y: p.y + best.ny * off };
+        label += ', ' + z.sides[right ? 1 : 0];
+      }
     }
     return { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10, label };
   }

@@ -38,13 +38,13 @@
     <text x="250" y="400" class="zm-bld-sub">Student</text>
     <!-- sidewalks, then roads -->
     <path d="M338,476 H96" class="zm-walk"/>
-    <path d="M130,476 V144" class="zm-walk"/>
+    <path d="M130,476 V144" class="zm-walk zm-wide-walk"/>
     <circle cx="130" cy="104" r="40" class="zm-walk zm-ring-walk"/>
     <path d="M130,66 V0" class="zm-walk"/>
     <path d="M338,0 V520" class="zm-road zm-avenue"/>
     <path d="M349,0 V520" class="zm-lane"/>
     <path d="M338,476 H96" class="zm-road"/>
-    <path d="M130,476 V144" class="zm-road"/>
+    <path d="M130,476 V144" class="zm-road zm-wide-road"/>
     <circle cx="130" cy="104" r="40" class="zm-road zm-ring"/>
     <path d="M130,66 V0" class="zm-road"/>
     <circle cx="130" cy="104" r="22" class="zm-island"/>
@@ -108,7 +108,13 @@
         shape.addEventListener('click', pick);
         shape.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(null); } });
       }
+      if (z.width) shape.style.strokeWidth = z.width;
       gZones.appendChild(shape);
+      if (z.sides) { // dashed middle line so both sides of the street are clear
+        const mid = document.createElementNS(NS, 'path');
+        mid.setAttribute('d', z.path); mid.setAttribute('class', 'zm-centerline');
+        gZones.appendChild(mid);
+      }
       nodes[z.id] = { shape, pick };
 
       // Number badge placed on the shape so people can match it with the buttons below.

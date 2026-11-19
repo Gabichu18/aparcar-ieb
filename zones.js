@@ -19,6 +19,9 @@ module.exports = [
     shape: 'line',
     path: 'M130,452 V158',
     parts: ['al principio, junto al cruce', 'a mitad de la calle', 'al final, junto a la rotonda'],
+    // Two-sided street: the pin goes on the side you tap. sides[0] = left when walking along the path.
+    sides: ['lado del IEB', 'lado de la residencia'],
+    width: 36,
   },
   {
     id: 'plaza',
