@@ -94,14 +94,9 @@ function selectZone(id) {
 }
 function renderZones() {
   $('#zoneChips').innerHTML = config.zones.map((z) => `
-    <button type="button" class="chip" role="radio" aria-checked="false" data-zone="${esc(z.id)}">${esc(z.name)}</button>`).join('');
+    <button type="button" class="chip" role="radio" aria-checked="false" data-zone="${esc(z.id)}">${config.zones.indexOf(z) + 1}. ${esc(z.name)}</button>`).join('');
   $('#zoneChips').querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => selectZone(c.dataset.zone)));
-  if (!zoneMap && window.L) {
-    zoneMap = ZoneMap.create($('#zoneMap'), {
-      center: config.map.center, zoom: config.map.zoom, zones: config.zones, onSelect: selectZone,
-    });
-    if (!zoneMap.hasShapes) $('#zoneMap').insertAdjacentHTML('beforeend', '<div class="map-note">Las zonas aún no están dibujadas en el mapa. Elige la zona abajo.</div>');
-  }
+  if (!zoneMap) zoneMap = ZoneMap.create($('#zoneMap'), { zones: config.zones, onSelect: selectZone });
 }
 $('#alertForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -158,7 +153,6 @@ async function loadMe() {
   const me = await api('/api/me');
   $('#meEmail').textContent = me.email;
   $('#firstStep').classList.toggle('hidden', me.plates.length > 0 && me.pushDevices > 0);
-  $('#adminLink').classList.toggle('hidden', !me.isAdmin);
   $('#plateList').innerHTML = me.plates.length ? me.plates.map((p) => `
     <div class="item"><div class="head">
       <span><span class="plate-tag">${esc(fmtPlate(p.plate))}</span> <span class="meta">${esc(p.label || '')}</span></span>

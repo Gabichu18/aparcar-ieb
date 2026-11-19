@@ -10,7 +10,6 @@
   <link rel="apple-touch-icon" href="/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Aparcar IEB">
-  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -48,7 +47,7 @@
       <h1>¿Alguien te bloquea?</h1>
       <form id="alertForm">
         <fieldset>
-          <legend>1. Toca en el mapa la calle donde estás aparcado</legend>
+          <legend>1. Toca en el mapa dónde estás aparcado</legend>
           <div id="zoneMap" class="zone-map"></div>
           <div id="zoneChips" class="chips" role="radiogroup" aria-label="Zona"></div>
         </fieldset>
@@ -94,7 +93,6 @@
 
       <h2>Cuenta</h2>
       <p class="muted small">Has entrado como <span id="meEmail"></span>.</p>
-      <p id="adminLink" class="hidden"><a class="secondary btnlink" href="/editor.html">✏️ Editar zonas del mapa</a></p>
       <button id="deleteAccount" class="danger">Borrar mi cuenta y mis datos</button>
     </section>
   </main>
@@ -106,7 +104,6 @@
   </nav>
 
   <div id="toast" class="toast hidden"></div>
-  <script src="/vendor/leaflet/leaflet.js"></script>
   <script src="/zonemap.js"></script>
   <script src="/app.js"></script>
 </body>

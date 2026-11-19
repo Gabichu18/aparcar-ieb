@@ -9,7 +9,7 @@ and the owner gets a push notification and an email asking them to move. The own
 ## How it works
 - **Sign in** with a university email only (6-digit code sent by email). No passwords.
 - **My cars**: each student registers up to 3 plates. A plate can belong to one account only.
-- **Alert**: choose zone (Rotonda del fondo, Calle de acceso al IEB, Calle de NIDO), type the plate, optional note.
+- **Alert**: choose zone (Calle de NIDO, Calle principal del IEB, Rotonda, Centro de la rotonda, Tramo final) on a drawn street map, type the plate, optional note.
 - **Privacy**: the sender never sees the owner's name or email, and vice versa. Alerts are deleted after 30 days.
   Users can delete their account and all data from "My cars".
 - **Anti-abuse**: max 5 alerts per person per hour, max 1 alert per plate every 5 minutes, you can't report your own car.
@@ -32,7 +32,6 @@ test mode: login codes and emails are printed in the console/logs.
 | `MAIL_FROM` | Sender shown on emails; must be a sender verified in Brevo | `Aparcar IEB <you@gmail.com>` |
 | `MAILJET_API_KEY` + `MAILJET_SECRET_KEY` | Alternative to Brevo: free Mailjet account (200 emails a day) | from Mailjet → Account settings → API keys |
 | `SMTP_URL` | Alternative to Brevo: any SMTP server (blocked on Render's free plan) | `smtps://user:pass@smtp.gmail.com` |
-| `ADMIN_EMAILS` | Emails that can open the zone editor (`/editor.html`) to draw the zones on the map | `you@alumni-ieb.es` |
 | `ALLOWED_EMAIL_DOMAINS` | Email domains allowed to sign up (comma separated) | `ieb.es,alumni-ieb.es` (default) |
 | `APP_URL` | Public address, used in emails. On Render it is detected automatically | `https://aparcar-ieb.onrender.com` |
 | `VAPID_SUBJECT` | Contact for the push service | `mailto:you@gmail.com` |
@@ -47,8 +46,8 @@ Push keys are generated on first start and stored in the database, so they survi
 - **Brevo** free plan (300 emails a day) for login codes and alert emails. Render's free plan blocks SMTP, so Brevo's HTTP API is used.
 
 ## Editing zones
-The zone ids live in `zones.js`. Their shapes and names are drawn on the satellite map in the zone editor
-(`/editor.html`, only for `ADMIN_EMAILS`) and stored in the database. Each zone's reference photo is `public/img/<zone id>.jpg`.
+Zones live in `zones.js`: name, description and their shape on the drawn street map (SVG, viewBox 360x520).
+The background sketch (buildings, roads) is in `public/zonemap.js`. Each zone id must stay stable once in use.
 
 ## Files
 - `server.js`: API, login codes, alerts and push
