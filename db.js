@@ -52,6 +52,15 @@ const TABLES = (pg) => `
   CREATE INDEX IF NOT EXISTS alerts_reporter ON alerts(reporter_id, created_at);
   CREATE INDEX IF NOT EXISTS alerts_owner ON alerts(owner_id, created_at);
   CREATE INDEX IF NOT EXISTS alerts_plate ON alerts(plate, created_at);
+  CREATE TABLE IF NOT EXISTS telegram_chats (
+    user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    chat_id TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS telegram_links (
+    code TEXT PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at BIGINT NOT NULL
+  );
 `;
 
 async function openDb() {

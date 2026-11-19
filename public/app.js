@@ -148,11 +148,35 @@ async function loadAlerts() {
   } catch (err) { if (err.status === 401) show('login'); }
 }
 
+// ---------- Telegram ----------
+function updateTelegram(tg) {
+  $('#tgBox').classList.toggle('hidden', !tg.enabled);
+  if (!tg.enabled) return;
+  $('#tgStatus').textContent = tg.linked
+    ? '✅ Telegram vinculado: los avisos te llegarán también por Telegram.'
+    : 'Recibe los avisos como mensaje de Telegram (gratis). Pulsa el botón, se abrirá Telegram y dale a «Iniciar».';
+  $('#tgLink').classList.toggle('hidden', tg.linked);
+  $('#tgUnlink').classList.toggle('hidden', !tg.linked);
+}
+$('#tgLink').addEventListener('click', async () => {
+  try {
+    const r = await api('/api/telegram/link', { method: 'POST' });
+    window.location.href = r.url;
+  } catch (err) { toast(err.message); }
+});
+$('#tgUnlink').addEventListener('click', async () => {
+  await api('/api/telegram/link', { method: 'DELETE' });
+  toast('Telegram desvinculado.'); loadMe();
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && !$('#tgBox').classList.contains('hidden') && $('#tgUnlink').classList.contains('hidden')) loadMe().catch(() => {});
+});
+
 // ---------- My cars ----------
 async function loadMe() {
   const me = await api('/api/me');
   $('#meEmail').textContent = me.email;
-  $('#firstStep').classList.toggle('hidden', me.plates.length > 0 && me.pushDevices > 0);
+  $('#firstStep').classList.toggle('hidden', me.plates.length > 0 && (me.pushDevices > 0 || (me.telegram && me.telegram.linked)));
   $('#plateList').innerHTML = me.plates.length ? me.plates.map((p) => `
     <div class="item"><div class="head">
       <span><span class="plate-tag">${esc(fmtPlate(p.plate))}</span> <span class="meta">${esc(p.label || '')}</span></span>
@@ -163,6 +187,7 @@ async function loadMe() {
     loadMe();
   }));
   updatePushStatus(me.pushDevices);
+  updateTelegram(me.telegram || {});
   return me;
 }
 $('#plateForm').addEventListener('submit', async (e) => {

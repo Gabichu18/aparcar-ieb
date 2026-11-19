@@ -6,6 +6,7 @@ const webpush = require('web-push');
 const zones = require('./zones');
 const { openDb } = require('./db');
 const { sendMail, mailMode } = require('./mail');
+const telegram = require('./telegram');
 
 // ---------- Config (environment variables) ----------
 const PORT = Number(process.env.PORT || 3000);
@@ -181,7 +182,8 @@ async function main() {
   app.get('/api/me', auth, h(async (req, res) => {
     const plates = await db.all('SELECT plate, label FROM plates WHERE user_id = ? ORDER BY created_at', req.user.id);
     const pushDevices = Number((await db.get('SELECT COUNT(*) AS n FROM push_subs WHERE user_id = ?', req.user.id)).n);
-    res.json({ email: req.user.email, plates, pushDevices });
+    const tg = telegram.enabled && await db.get('SELECT chat_id FROM telegram_chats WHERE user_id = ?', req.user.id);
+    res.json({ email: req.user.email, plates, pushDevices, telegram: { enabled: telegram.enabled, linked: Boolean(tg) } });
   }));
 
   // GDPR: delete the account and everything linked to it.
@@ -273,6 +275,7 @@ async function main() {
         pushToUser(owner.user_id, { title: '🚗 Por favor, mueve tu coche', body, url: '/#incoming', alertId, requireInteraction: true }),
         sendMail(owner.email, `Tu coche ${plate} está bloqueando a alguien`,
           `${body}\n\nAbre la app para avisar de que vas de camino: ${APP_URL}/#incoming`),
+        telegramToUser(owner.user_id, (chat) => telegram.sendAlert(chat, alertId, `🚗 ${body}`)),
       ]);
     }
     res.json({ ok: true, status, alertId });
@@ -290,24 +293,95 @@ async function main() {
     res.json({ sent, incoming });
   }));
 
-  // Owner answers: "coming" (on my way) or "moved" (done).
+  async function telegramToUser(userId, send) {
+    if (!telegram.enabled) return;
+    const row = await db.get('SELECT chat_id FROM telegram_chats WHERE user_id = ?', userId);
+    if (row) await send(row.chat_id);
+  }
+
+  // Owner answers "coming" (on my way) or "moved" (done). Used by the app and by Telegram buttons.
+  async function respondToAlert(ownerId, alertId, status) {
+    const alert = await db.get('SELECT * FROM alerts WHERE id = ? AND owner_id = ?', alertId, ownerId);
+    if (!alert) return null;
+    await db.run('UPDATE alerts SET status = ?, updated_at = ? WHERE id = ?', status, now(), alert.id);
+    if (alert.reporter_id) {
+      const title = status === 'coming' ? 'El dueño va de camino' : 'El coche ya se ha movido';
+      const body = `${alert.plate} en ${zoneName(alert.zone)}`;
+      await Promise.all([
+        pushToUser(alert.reporter_id, { title, body, url: '/#sent' }),
+        telegramToUser(alert.reporter_id, (chat) => telegram.sendText(chat, `${status === 'coming' ? '🚶' : '✅'} ${title}: ${body}`)),
+      ]);
+    }
+    return alert;
+  }
+
   app.post('/api/alerts/:id/respond', auth, h(async (req, res) => {
     const status = req.body.status;
     if (!['coming', 'moved'].includes(status)) return res.status(400).json({ error: 'Estado no válido' });
     const id = Number(req.params.id);
-    if (!Number.isInteger(id)) return res.status(404).json({ error: 'Aviso no encontrado' });
-    const alert = await db.get('SELECT * FROM alerts WHERE id = ? AND owner_id = ?', id, req.user.id);
-    if (!alert) return res.status(404).json({ error: 'Aviso no encontrado' });
-    await db.run('UPDATE alerts SET status = ?, updated_at = ? WHERE id = ?', status, now(), alert.id);
-    if (alert.reporter_id) {
-      await pushToUser(alert.reporter_id, {
-        title: status === 'coming' ? 'El dueño va de camino' : 'El coche ya se ha movido',
-        body: `${alert.plate} en ${zoneName(alert.zone)}`,
-        url: '/#sent',
-      });
+    if (!Number.isInteger(id) || !(await respondToAlert(req.user.id, id, status))) {
+      return res.status(404).json({ error: 'Aviso no encontrado' });
     }
     res.json({ ok: true });
   }));
+
+  // ---------- Telegram ----------
+  app.post('/api/telegram/link', auth, h(async (req, res) => {
+    if (!telegram.enabled) return res.status(400).json({ error: 'Telegram no está activado en esta app.' });
+    const code = crypto.randomBytes(12).toString('base64url');
+    await db.run('DELETE FROM telegram_links WHERE user_id = ? OR expires_at < ?', req.user.id, now());
+    await db.run('INSERT INTO telegram_links (code, user_id, expires_at) VALUES (?, ?, ?)', code, req.user.id, now() + 30 * 60e3);
+    const url = telegram.linkUrl(code);
+    if (!url) return res.status(502).json({ error: 'No se pudo contactar con Telegram. Inténtalo en un momento.' });
+    res.json({ url });
+  }));
+
+  app.delete('/api/telegram/link', auth, h(async (req, res) => {
+    await db.run('DELETE FROM telegram_chats WHERE user_id = ?', req.user.id);
+    res.json({ ok: true });
+  }));
+
+  app.post('/api/telegram/webhook/:secret', h(async (req, res) => {
+    if (!telegram.enabled || req.params.secret !== telegram.WEBHOOK_SECRET
+      || req.get('x-telegram-bot-api-secret-token') !== telegram.WEBHOOK_SECRET) return res.sendStatus(403);
+    const u = req.body || {};
+    if (u.message && u.message.chat && typeof u.message.text === 'string') {
+      const chatId = String(u.message.chat.id);
+      const m = u.message.text.match(/^\/start(?:\s+(\S+))?/);
+      if (m && m[1]) {
+        const link = await db.get('SELECT user_id FROM telegram_links WHERE code = ? AND expires_at > ?', m[1], now());
+        if (link) {
+          await db.run('DELETE FROM telegram_links WHERE code = ?', m[1]);
+          await db.run('INSERT INTO telegram_chats (user_id, chat_id) VALUES (?, ?) ON CONFLICT (user_id) DO UPDATE SET chat_id = excluded.chat_id', link.user_id, chatId);
+          await telegram.sendText(chatId, '✅ Listo. A partir de ahora recibirás aquí los avisos de Aparcar IEB cuando tu coche bloquee a alguien.');
+        } else {
+          await telegram.sendText(chatId, 'Este enlace ha caducado. Vuelve a pulsar «Vincular Telegram» en la app.');
+        }
+      } else {
+        await telegram.sendText(chatId, `Hola 👋 Para recibir avisos, abre la app (${APP_URL}) y pulsa «Vincular Telegram» en Mis coches.`);
+      }
+    } else if (u.callback_query) {
+      const q = u.callback_query;
+      const [status, idStr] = String(q.data || '').split(':');
+      const chat = await db.get('SELECT user_id FROM telegram_chats WHERE chat_id = ?', String(q.message && q.message.chat && q.message.chat.id));
+      let answer = 'Aviso no encontrado';
+      if (chat && ['coming', 'moved'].includes(status) && await respondToAlert(chat.user_id, Number(idStr), status)) {
+        answer = status === 'coming' ? 'Le hemos dicho que vas de camino 🚶' : '¡Gracias por moverlo! ✅';
+        if (q.message) {
+          await telegram.call('editMessageReplyMarkup', {
+            chat_id: q.message.chat.id, message_id: q.message.message_id,
+            reply_markup: status === 'coming'
+              ? { inline_keyboard: [[{ text: '✅ Ya lo he movido', callback_data: `moved:${idStr}` }]] }
+              : { inline_keyboard: [] },
+          });
+        }
+      }
+      await telegram.call('answerCallbackQuery', { callback_query_id: q.id, text: answer });
+    }
+    res.json({ ok: true });
+  }));
+
+  telegram.setup(APP_URL).catch((err) => console.error('telegram setup', err.message));
 
   app.listen(PORT, () => {
     console.log(`Aparcar IEB running on ${APP_URL} (port ${PORT}), database: ${db.kind}, email: ${mailMode}`);
