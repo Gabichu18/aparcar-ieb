@@ -25,6 +25,8 @@ const LIMITS = {
   maxPlatesPerUser: 3,
   sessionDays: 180,
   spotReportsPerHour: 20,
+  remindMinutes: Number(process.env.REMIND_MINUTES || 5),
+  escalateMinutes: Number(process.env.ESCALATE_MINUTES || 10),
   spotReportHours: 3,      // a "free / full" answer is shown for 3 hours
 };
 
@@ -130,6 +132,12 @@ async function main() {
     next();
   });
   app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
+  // Plate reading from a photo runs in the browser with Tesseract (free); we serve its files ourselves.
+  const nm = (p) => path.join(__dirname, 'node_modules', p);
+  const ocrCache = { maxAge: '30d', immutable: true };
+  app.use('/ocr/js', express.static(nm('tesseract.js/dist'), ocrCache));
+  app.use('/ocr/core', express.static(nm('tesseract.js-core'), ocrCache));
+  app.use('/ocr/lang', express.static(nm('@tesseract.js-data/eng/4.0.0_best_int'), ocrCache));
 
   const auth = h(async (req, res, next) => {
     const token = getCookie(req, 'sid');
@@ -315,7 +323,7 @@ async function main() {
   app.get('/api/alerts', auth, h(async (req, res) => {
     const since = now() - 86400e3;
     const sent = await db.all(
-      'SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot FROM alerts WHERE reporter_id = ? AND created_at > ? ORDER BY created_at DESC',
+      'SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot, escalated FROM alerts WHERE reporter_id = ? AND created_at > ? ORDER BY created_at DESC',
       req.user.id, since);
     const incoming = await db.all(
       "SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot FROM alerts WHERE owner_id = ? AND created_at > ? AND status <> 'not_registered' ORDER BY created_at DESC",
@@ -377,6 +385,34 @@ async function main() {
     } finally { ticking = false; }
   }
   setInterval(() => checkinTick().catch(console.error), 60e3).unref();
+
+  // ---------- Reminders: owner hasn't answered ----------
+  // 5 min with no answer: remind the owner. 10 min: tell the reporter to try the front desk / security.
+  async function alertTick() {
+    const t = now();
+    const toRemind = await db.all("SELECT * FROM alerts WHERE status = 'notified' AND reminded IS NULL AND created_at < ? AND created_at > ?",
+      t - LIMITS.remindMinutes * 60e3, t - 3600e3);
+    for (const a of toRemind) {
+      await db.run('UPDATE alerts SET reminded = 1 WHERE id = ?', a.id);
+      const body = `Tu coche ${a.plate} sigue bloqueando a alguien en ${zoneName(a.zone)}${a.spot ? ' (' + a.spot + ')' : ''}. Pulsa «Voy de camino» para que lo sepa.`;
+      await Promise.all([
+        pushToUser(a.owner_id, { title: '⏰ Recordatorio: mueve tu coche', body, url: '/#incoming', alertId: a.id, requireInteraction: true }),
+        telegramToUser(a.owner_id, (chat) => telegram.sendAlert(chat, a.id, `⏰ ${body}`)),
+      ]);
+    }
+    const toEscalate = await db.all("SELECT * FROM alerts WHERE status = 'notified' AND escalated IS NULL AND created_at < ? AND created_at > ?",
+      t - LIMITS.escalateMinutes * 60e3, t - 3600e3);
+    for (const a of toEscalate) {
+      await db.run('UPDATE alerts SET escalated = 1 WHERE id = ?', a.id);
+      if (!a.reporter_id) continue;
+      const body = `El dueño del ${a.plate} aún no ha respondido. Prueba a avisar en conserjería o a seguridad del campus.`;
+      await Promise.all([
+        pushToUser(a.reporter_id, { title: '😕 El dueño no responde', body, url: '/#sent' }),
+        telegramToUser(a.reporter_id, (chat) => telegram.sendText(chat, `😕 ${body}`)),
+      ]);
+    }
+  }
+  setInterval(() => alertTick().catch(console.error), 30e3).unref();
 
   app.get('/api/parking', auth, h(async (req, res) => {
     const since = now() - LIMITS.spotReportHours * 3600e3;

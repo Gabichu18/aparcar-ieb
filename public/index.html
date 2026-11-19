@@ -62,9 +62,13 @@
           <div id="spotInfo" class="note spot-info">Toca la calle donde estás aparcado: pondremos un 📍 en el sitio exacto.</div>
           <div id="zoneChips" class="chips" role="radiogroup" aria-label="Zona"></div>
         </fieldset>
-        <label>2. Matrícula del coche que te bloquea
+        <label for="alertPlate">2. Matrícula del coche que te bloquea</label>
+        <div class="plate-row">
           <input id="alertPlate" class="plate" required autocapitalize="characters" autocomplete="off" placeholder="1234 ABC" maxlength="12">
-        </label>
+          <button type="button" id="scanPlate" class="secondary scan-btn" aria-label="Leer la matrícula con la cámara">📷</button>
+          <input id="scanFile" type="file" accept="image/*" capture="environment" class="hidden">
+        </div>
+        <p id="scanState" class="muted small hidden"></p>
         <label>3. Nota (opcional)
           <input id="alertNote" maxlength="140" placeholder="p. ej. Coche gris delante de la rampa del garaje">
         </label>
@@ -146,6 +150,14 @@
     <button data-tab="parking"><span>🅿️</span>Sitios</button>
     <button data-tab="activity"><span>🔔</span>Actividad<i id="badge" class="badge hidden"></i></button>
   </nav>
+
+  <div id="scanner" class="scanner hidden" role="dialog" aria-label="Leer matrícula con la cámara">
+    <video id="scanVideo" playsinline muted autoplay></video>
+    <div class="scan-frame" id="scanFrame"></div>
+    <p class="scan-text" id="scanText">Pon la matrícula dentro del recuadro</p>
+    <div class="scan-actions"><button type="button" id="scanCancel" class="secondary">Cancelar</button>
+      <button type="button" id="scanPhoto" class="secondary">Subir una foto</button></div>
+  </div>
 
   <div id="toast" class="toast hidden"></div>
   <script src="/spot.js"></script>

@@ -152,3 +152,16 @@ input.plate::placeholder { font-weight: 400; letter-spacing: .05em; color: var(-
 .report-row button.chosen { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .checkin p { margin-top: 0; }
 .checkin input[type=time] { flex: 1 1 120px; }
+.plate-row { display: flex; gap: 8px; }
+.plate-row input { flex: 1; min-width: 0; }
+.scan-btn { flex: 0 0 56px; font-size: 1.4rem; padding: 8px; }
+.scan-btn:disabled { opacity: .5; }
+body.no-scroll { overflow: hidden; }
+.scanner { position: fixed; inset: 0; z-index: 50; background: #000; }
+.scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scan-frame { position: absolute; left: 8%; width: 84%; top: 38%; aspect-ratio: 4.6 / 1; border: 3px solid #fff; border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,.5); }
+.scan-text { position: absolute; left: 16px; right: 16px; top: calc(20px + env(safe-area-inset-top)); margin: 0; color: #fff;
+  text-align: center; font-weight: 700; font-size: 1.05rem; text-shadow: 0 1px 4px #000; }
+.scan-actions { position: absolute; left: 16px; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom)); display: flex; gap: 10px; }
+.scan-actions button { flex: 1; }

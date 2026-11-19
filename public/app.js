@@ -122,8 +122,142 @@ $('#alertForm').addEventListener('submit', async (e) => {
       r.classList.add('warn');
       r.textContent = 'Esta matrícula no está registrada en la app, así que no podemos avisar al dueño. Prueba con recepción o seguridad del campus.';
     }
-    $('#alertPlate').value = ''; $('#alertNote').value = ''; selectZone(null);
+    $('#alertPlate').value = ''; $('#alertNote').value = ''; selectZone(null); $('#scanState').classList.add('hidden');
   } catch (err) { toast(err.message); }
+});
+
+// ---------- Read the plate from a photo (Tesseract, runs on the phone) ----------
+let ocrWorker = null;
+function loadScript(src) {
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('No se pudo cargar el lector')); document.head.appendChild(s); });
+}
+async function getOcr() {
+  if (ocrWorker) return ocrWorker;
+  if (!window.Tesseract) await loadScript('/ocr/js/tesseract.min.js');
+  const base = location.origin + '/ocr';
+  ocrWorker = await Tesseract.createWorker('eng', 1, {
+    workerPath: base + '/js/worker.min.js', corePath: base + '/core', langPath: base + '/lang', gzip: true,
+  });
+  await ocrWorker.setParameters({ tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ' });
+  return ocrWorker;
+}
+// Resize the photo to a given width and make it grey (Tesseract reads best with letters ~30-60 px tall).
+async function photoAt(img, width) {
+  const scale = width / img.width;
+  const c = document.createElement('canvas'); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+  const g = c.getContext('2d'); g.filter = 'grayscale(1) contrast(1.2)'; g.drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+// Find a Spanish plate in the text: 1234 BCD (current) or M 1234 AB (old). Fixes common misreads.
+function findPlate(text) {
+  const raw = text.toUpperCase().replace(/[^A-Z0-9\n ]/g, ' ');
+  const toDigit = { O: '0', Q: '0', D: '0', I: '1', L: '1', Z: '2', S: '5', B: '8', G: '6', T: '7' };
+  const toLetter = { 0: 'D', 1: 'J', 2: 'Z', 5: 'S', 8: 'B', 6: 'G', 7: 'T', A: 'R', E: 'F', I: 'J', O: 'D', U: 'V', Q: 'D' };
+  const compact = raw.replace(/\s+/g, '');
+  const tokens = [compact, ...raw.split('\n').map((l) => l.replace(/\s+/g, ''))];
+  // Try every position and keep the reading that needs the fewest corrections.
+  let best = null;
+  for (const t of tokens) {
+    for (let i = 0; i + 7 <= t.length; i++) {
+      const d0 = t.slice(i, i + 4), l0 = t.slice(i + 4, i + 7);
+      const digits = d0.split('').map((ch) => toDigit[ch] || ch).join('');
+      const letters = l0.split('').map((ch) => toLetter[ch] || ch).join('');
+      if (!/^\d{4}$/.test(digits) || !/^[BCDFGHJKLMNPRSTVWXYZ]{3}$/.test(letters)) continue;
+      const fixes = [...d0].filter((ch, k) => ch !== digits[k]).length + [...l0].filter((ch, k) => ch !== letters[k]).length;
+      if (fixes <= 2 && (!best || fixes < best.fixes)) best = { fixes, plate: digits + ' ' + letters };
+    }
+  }
+  if (best) return best.plate;
+  const old = compact.match(/([A-Z]{1,2})(\d{4})([A-Z]{1,2})/);
+  return old ? `${old[1]} ${old[2]} ${old[3]}` : null;
+}
+// Read a tight crop around the plate (one line of text).
+async function readCrop(worker, crop) {
+  await worker.setParameters({ tessedit_pageseg_mode: '7' });
+  for (const width of [380, 560]) {
+    const { data } = await worker.recognize(await photoAt(crop, width));
+    window.lastOcrText = data.text;
+    const plate = findPlate(data.text);
+    if (plate) return plate;
+  }
+  return null;
+}
+function plateFound(plate) {
+  $('#alertPlate').value = plate;
+  const st = $('#scanState'); st.classList.remove('hidden');
+  st.textContent = `✅ He leído ${plate}. Compruébala antes de enviar.`;
+}
+
+// Live camera: the plate is read on its own while you hold it inside the frame.
+let scanStream = null;
+function closeScanner() {
+  if (scanStream) scanStream.getTracks().forEach((t) => t.stop());
+  scanStream = null;
+  $('#scanner').classList.add('hidden');
+  document.body.classList.remove('no-scroll');
+}
+async function openScanner() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return $('#scanFile').click();
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+  } catch { return $('#scanFile').click(); } // no camera permission: pick / take a photo instead
+  const video = $('#scanVideo');
+  video.srcObject = scanStream;
+  $('#scanner').classList.remove('hidden');
+  document.body.classList.add('no-scroll');
+  $('#scanText').textContent = 'Preparando el lector…';
+  await video.play().catch(() => {});
+  let worker;
+  try { worker = await getOcr(); } catch { closeScanner(); return toast('No se pudo cargar el lector. Escribe la matrícula a mano.'); }
+  $('#scanText').textContent = 'Pon la matrícula dentro del recuadro';
+  const started = Date.now();
+  while (scanStream) {
+    if (video.videoWidth) {
+      const plate = await readCrop(worker, grabFrame(video, $('#scanFrame'))).catch(() => null);
+      if (plate && scanStream) { closeScanner(); plateFound(plate); if (navigator.vibrate) navigator.vibrate(80); return; }
+      if (Date.now() - started > 8000) $('#scanText').textContent = 'Acércate un poco y que la matrícula quede recta y bien iluminada';
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+// Cut out the part of the camera image that is inside the on-screen frame (plus a small margin).
+function grabFrame(video, frame) {
+  const vr = video.getBoundingClientRect(), fr = frame.getBoundingClientRect();
+  const s = Math.max(vr.width / video.videoWidth, vr.height / video.videoHeight); // object-fit: cover
+  const ox = (vr.width - video.videoWidth * s) / 2, oy = (vr.height - video.videoHeight * s) / 2;
+  const mx = fr.width * 0.06, my = fr.height * 0.2;
+  const sx = Math.max(0, (fr.left - vr.left - ox - mx) / s), sy = Math.max(0, (fr.top - vr.top - oy - my) / s);
+  const sw = Math.min(video.videoWidth - sx, (fr.width + 2 * mx) / s), sh = Math.min(video.videoHeight - sy, (fr.height + 2 * my) / s);
+  const c = document.createElement('canvas'); c.width = Math.round(sw); c.height = Math.round(sh);
+  c.getContext('2d').drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return c;
+}
+$('#scanPlate').addEventListener('click', openScanner);
+$('#scanCancel').addEventListener('click', closeScanner);
+$('#scanPhoto').addEventListener('click', () => { closeScanner(); $('#scanFile').click(); });
+// Photo instead of live camera: the plate can be anywhere, so read the whole picture at a few sizes.
+$('#scanFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  const st = $('#scanState'); st.classList.remove('hidden');
+  st.textContent = '🔎 Leyendo la matrícula… (la primera vez tarda unos segundos)';
+  $('#scanPlate').disabled = true;
+  try {
+    const [worker, img] = await Promise.all([getOcr(), createImageBitmap(file)]);
+    await worker.setParameters({ tessedit_pageseg_mode: '11' });
+    let plate = null;
+    for (const width of [900, 600, 1400]) {
+      const { data } = await worker.recognize(await photoAt(img, width));
+      window.lastOcrText = data.text;
+      plate = findPlate(data.text);
+      if (plate) break;
+    }
+    if (plate) plateFound(plate);
+    else st.textContent = 'No he podido leer la matrícula. Prueba con la cámara en directo (📷) o escríbela a mano.';
+  } catch (err) {
+    st.textContent = 'No se pudo leer la foto. Escribe la matrícula a mano.';
+    console.error(err);
+  } finally { $('#scanPlate').disabled = false; }
 });
 
 // ---------- Activity ----------
@@ -146,6 +280,7 @@ async function loadAlerts() {
       <div class="item">
         <div class="head"><span class="plate-tag">${esc(fmtPlate(a.plate))}</span><span class="pill ${a.status}">${STATUS[a.status]}</span></div>
         <div class="meta">${esc(zoneName(a.zone))}${a.spot ? `, ${esc(a.spot)}` : ''} · ${ago(a.created_at)}</div>
+        ${a.status === 'notified' && a.escalated ? '<div class="note">😕 El dueño aún no ha respondido. Prueba a avisar en conserjería o a seguridad del campus.</div>' : ''}
       </div>`).join('') : '<div class="empty">No has enviado ningún aviso.</div>';
     $('#incomingList').querySelectorAll('.mini-map').forEach((m) => {
       const x = Number(m.dataset.x), y = Number(m.dataset.y);
