@@ -76,7 +76,8 @@ input.plate::placeholder { font-weight: 400; letter-spacing: .05em; color: var(-
 .zm-bld-sub { font: 600 11px system-ui, sans-serif; fill: #6b766f; text-anchor: middle; }
 .zm-road { fill: none; stroke: #8f9893; stroke-width: 30; stroke-linecap: round; stroke-linejoin: round; }
 .zm-avenue { stroke: #7c8580; stroke-width: 34; }
-.zm-ring { stroke-width: 30; }
+.zm-ring { stroke-width: 24; }
+.zm-ring-walk { stroke-width: 30; }
 .zm-island { fill: #c5ccc7; }
 .zm-garage { fill: #2f3633; }
 .zm-garage-arrow { fill: none; stroke: #fff; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }

@@ -9,8 +9,8 @@
   const BACKGROUND = `
     <rect x="0" y="0" width="360" height="520" class="zm-ground"/>
     <!-- construction site (top left) -->
-    <rect x="12" y="62" width="60" height="58" rx="8" class="zm-bld zm-site"/>
-    <text x="42" y="95" class="zm-bld-sub">obras</text>
+    <rect x="10" y="62" width="54" height="58" rx="8" class="zm-bld zm-site"/>
+    <text x="37" y="95" class="zm-bld-sub">obras</text>
     <!-- IEB: the building sits back from the street, with gardens in front -->
     <rect x="6" y="162" width="104" height="284" rx="8" class="zm-lawn"/>
     <rect x="10" y="168" width="80" height="196" rx="6" class="zm-bld zm-ieb"/>
@@ -39,15 +39,15 @@
     <!-- sidewalks, then roads -->
     <path d="M338,476 H96" class="zm-walk"/>
     <path d="M130,476 V144" class="zm-walk zm-wide-walk"/>
-    <circle cx="130" cy="104" r="40" class="zm-walk zm-ring-walk"/>
+    <circle cx="130" cy="104" r="46" class="zm-walk zm-ring-walk"/>
     <path d="M130,66 V0" class="zm-walk"/>
     <path d="M338,0 V520" class="zm-road zm-avenue"/>
     <path d="M349,0 V520" class="zm-lane"/>
     <path d="M338,476 H96" class="zm-road"/>
     <path d="M130,476 V144" class="zm-road zm-wide-road"/>
-    <circle cx="130" cy="104" r="40" class="zm-road zm-ring"/>
+    <circle cx="130" cy="104" r="46" class="zm-road zm-ring"/>
     <path d="M130,66 V0" class="zm-road"/>
-    <circle cx="130" cy="104" r="22" class="zm-island"/>
+    <circle cx="130" cy="104" r="34" class="zm-island"/>
     <!-- IEB underground garage: straight on at the end of the NIDO street -->
     <path d="M100,461 L56,456 L56,496 L100,491 Z" class="zm-garage"/>
     <path d="M92,476 H66 M73,469 L66,476 L73,483" class="zm-garage-arrow"/>
