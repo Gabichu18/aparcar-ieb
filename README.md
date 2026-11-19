@@ -20,26 +20,34 @@ Requires Node.js 22.13 or newer.
 npm install
 npm start          # http://localhost:3000
 ```
-Without `SMTP_URL`, the app runs in test mode: login codes and emails are printed in the console.
+Without `DATABASE_URL` it uses a local SQLite file in `data/`. Without an email service it runs in
+test mode: login codes and emails are printed in the console/logs.
 
 ## Settings (environment variables)
 | Variable | What it does | Example |
 |---|---|---|
+| `DATABASE_URL` | Postgres connection string (free Neon database). If empty, local SQLite is used | `postgresql://user:pass@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require` |
+| `BREVO_API_KEY` | Free Brevo account API key, used to send emails over HTTPS | `xkeysib-...` |
+| `MAIL_FROM` | Sender shown on emails; must be a sender verified in Brevo | `Aparcar IEB <you@gmail.com>` |
+| `SMTP_URL` | Alternative to Brevo: any SMTP server (blocked on Render's free plan) | `smtps://user:pass@smtp.gmail.com` |
 | `ALLOWED_EMAIL_DOMAINS` | Email domains allowed to sign up (comma separated) | `ieb.es,alumni-ieb.es` (default) |
-| `APP_URL` | Public HTTPS address of the app (used in emails) | `https://aparcar-ieb.onrender.com` |
-| `SMTP_URL` | Email server for codes and alerts | `smtps://user:pass@smtp.gmail.com` |
-| `MAIL_FROM` | Sender shown on emails | `Aparcar IEB <aparcar@...>` |
-| `DATA_DIR` | Where the database and push keys are stored (must be a persistent disk) | `/data` |
-| `VAPID_SUBJECT` | Contact for the push service | `mailto:you@ieb.es` |
-| `PORT` | Port to listen on | `3000` |
+| `APP_URL` | Public address, used in emails. On Render it is detected automatically | `https://aparcar-ieb.onrender.com` |
+| `VAPID_SUBJECT` | Contact for the push service | `mailto:you@gmail.com` |
+| `NODE_VERSION` | Node version on Render | `22` |
 
-## Deploying
-Push notifications require HTTPS. Any Node host with a persistent disk works (Render, Railway, Fly.io, a small VPS).
-Point `DATA_DIR` at the persistent disk so the database and push keys survive restarts.
+Push keys are generated on first start and stored in the database, so they survive restarts.
+
+## Free deployment (zero cost)
+- **Render** free web service: Build `npm install`, Start `npm start`, health check `/healthz`.
+  Free instances sleep after 15 minutes without visits and take about a minute to wake up.
+- **Neon** free Postgres for the data (Render's free plan has no permanent disk).
+- **Brevo** free plan (300 emails a day) for login codes and alert emails. Render's free plan blocks SMTP, so Brevo's HTTP API is used.
 
 ## Editing zones
 Zones live in `zones.js`; each zone's photo is `public/img/<zone id>.jpg`.
 
 ## Files
-- `server.js`: API, database (built-in SQLite), login codes, push and email
+- `server.js`: API, login codes, alerts and push
+- `db.js`: database (Postgres or SQLite)
+- `mail.js`: email sending (Brevo, SMTP or console)
 - `public/`: the app (HTML, CSS, JS), service worker for notifications, manifest and icons
