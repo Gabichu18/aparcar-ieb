@@ -22,7 +22,7 @@
     <path d="M338,0 V520" class="zm-road zm-avenue"/>
     <path d="M338,476 H176 Q112,476 112,412 V318 Q112,284 146,276 Q186,266 186,226 V144" class="zm-road"/>
     <circle cx="186" cy="104" r="40" class="zm-road zm-ring"/>
-    <path d="M150,90 Q106,72 84,54 Q62,36 18,28" class="zm-road"/>
+    <path d="M186,66 V0" class="zm-road"/>
     <circle cx="186" cy="104" r="22" class="zm-island"/>
     <!-- garage ramp -->
     <rect x="44" y="314" width="50" height="26" rx="5" class="zm-garage"/>

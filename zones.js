@@ -34,8 +34,8 @@ module.exports = [
   {
     id: 'last-section',
     name: 'Tramo final',
-    description: 'La calle que sigue después de la rotonda.',
+    description: 'La calle que sigue recta después de la rotonda.',
     shape: 'line',
-    path: 'M134,80 Q106,72 84,54 Q62,36 30,32',
+    path: 'M186,52 V12',
   },
 ];
