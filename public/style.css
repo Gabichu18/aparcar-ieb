@@ -9,7 +9,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text);
   font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+body { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
 .hidden { display: none !important; }
 .top { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center;
   padding: calc(10px + env(safe-area-inset-top)) 16px 10px; background: var(--card); border-bottom: 1px solid var(--line); }
@@ -188,3 +188,15 @@ body.no-scroll { overflow: hidden; }
 .lightbox { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.92); display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 16px; padding: 16px; }
 .lightbox img { max-width: 100%; max-height: 80vh; border-radius: 8px; }
+/* "Avisar": big, raised, eye-catching button in the middle of the tab bar */
+.tabs button.tab-main { color: var(--danger); font-weight: 800; font-size: .8rem; overflow: visible; }
+.tabs button.tab-main span { width: 64px; height: 64px; margin-top: -30px; margin-bottom: 2px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 2rem; color: #fff;
+  background: linear-gradient(145deg, #ff6b4a, #e0301e); border: 4px solid var(--card);
+  box-shadow: 0 6px 16px rgba(224,48,30,.45); animation: tab-pulse 2.4s ease-in-out infinite; }
+.tabs button.tab-main.active { color: var(--danger); }
+.tabs button.tab-main.active span { animation: none; transform: scale(1.06); box-shadow: 0 6px 18px rgba(224,48,30,.6); }
+.tabs button.tab-main:active span { transform: scale(.94); }
+@keyframes tab-pulse { 0%, 100% { box-shadow: 0 6px 16px rgba(224,48,30,.45), 0 0 0 0 rgba(224,48,30,.35); }
+  50% { box-shadow: 0 6px 16px rgba(224,48,30,.45), 0 0 0 10px rgba(224,48,30,0); } }
+@media (prefers-reduced-motion: reduce) { .tabs button.tab-main span { animation: none; } }
