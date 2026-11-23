@@ -531,7 +531,7 @@ function guideSteps(me) {
   const pushOn = pushSupported && perm === 'granted' && me.pushDevices > 0;
   let installHow;
   if (isMobile) installHow = 'Así la tienes como cualquier app y te llegan los avisos. Pulsa el botón y te enseñamos dónde tocar.';
-  else if (isIOS) installHow = 'En <b>Safari</b>, pulsa <b>Compartir</b> (el cuadrado con la flecha ⬆️) y luego <b>«Añadir a pantalla de inicio»</b>. Después abre Aparcar IEB <b>desde ese icono</b>.';
+  else if (isIOS) installHow = 'En <b>Safari</b>, toca los <b>tres puntitos ⋯</b> y luego <b>«Añadir a pantalla de inicio»</b> (Add to Home Screen). Después abre Aparcar IEB <b>desde ese icono</b>.';
   else if (isAndroid) installHow = installPrompt ? 'Pulsa el botón y confirma. Aparecerá el icono de Aparcar IEB en tu móvil.'
     : 'En Chrome, pulsa el menú <b>⋮</b> (arriba a la derecha) y luego <b>«Instalar aplicación»</b> o <b>«Añadir a pantalla de inicio»</b>.';
   else installHow = `Abre <b>${esc(location.host)}</b> en el navegador de tu móvil y añádela a la pantalla de inicio. Así te llegan los avisos aunque no estés en el ordenador.`;
@@ -621,24 +621,30 @@ const ICON_ADD = '<svg viewBox="0 0 24 24" class="i"><rect x="4" y="4" width="16
 const ICON_DOTS = '<span class="i dots">•••</span>';
 const ICON_KEBAB = '<span class="i dots">⋮</span>';
 
+// Each label also shows its English name, for phones set to English.
+const EN = (t) => ` <span class="en">(${t})</span>`;
 function installPlan() {
   const browser = isIOS || isIPad ? 'Safari' : 'Chrome';
+  const lead = 'Es muy fácil, sigue estos pasos:';
   if (inAppBrowser) return {
     lead: `Estás dentro de otra app. Para instalarla, ábrela primero en ${browser}.`, arrow: 'top-right', copy: true,
-    steps: [[ICON_DOTS, 'Toca <b>⋯</b> arriba a la derecha'], ['🧭', `Elige <b>«Abrir en ${browser}»</b> o «Abrir en el navegador»`]],
+    steps: [[ICON_DOTS, 'Toca <b>⋯</b> arriba a la derecha'], ['🧭', `Elige <b>«Abrir en ${browser}»</b>${EN('Open in ' + browser)}`]],
   };
   if (isIOS || isIPad) {
-    const done = ['🎉', 'Abre <b>Aparcar IEB</b> desde el icono nuevo'];
-    const add = [[ICON_ADD, 'Toca <b>«Añadir a pantalla de inicio»</b> (si no lo ves, desliza hacia abajo)'], ['✅', 'Pulsa <b>«Añadir»</b> arriba a la derecha'], done];
-    if (iosOtherBrowser || isIPad) return { lead: 'Es muy fácil, sigue estos pasos:', arrow: 'top-right', steps: [[ICON_SHARE, 'Toca <b>Compartir</b> arriba a la derecha'], ...add] };
-    if (safariVersion >= 26) return { lead: 'Es muy fácil, sigue estos pasos:', arrow: 'bottom-right', steps: [[ICON_DOTS, 'Toca <b>⋯</b> abajo a la derecha'], [ICON_SHARE, 'Toca <b>Compartir</b>'], ...add] };
-    return { lead: 'Es muy fácil, sigue estos pasos:', arrow: 'bottom-center', steps: [[ICON_SHARE, 'Toca <b>Compartir</b> en la barra de abajo'], ...add] };
+    const homeScreen = [ICON_ADD, `Toca <b>«Añadir a pantalla de inicio»</b>${EN('Add to Home Screen')}`];
+    const tail = [['✅', `Pulsa <b>«Añadir»</b>${EN('Add')} arriba a la derecha`], ['🎉', 'Abre <b>Aparcar IEB</b> desde el icono nuevo']];
+    if (iosOtherBrowser || isIPad) return { lead, arrow: 'top-right', steps: [[ICON_SHARE, `Toca <b>Compartir</b>${EN('Share')} arriba a la derecha`], homeScreen, ...tail] };
+    if (safariVersion >= 26) return { lead, arrow: 'bottom-right', steps: [
+      [ICON_DOTS, 'Toca los <b>tres puntitos ⋯</b> abajo a la derecha'],
+      [ICON_ADD, `Toca <b>«Añadir a pantalla de inicio»</b>${EN('Add to Home Screen')}<small class="hint">Si no lo ves, toca antes <b>Compartir</b>${EN('Share')} y búscalo ahí</small>`],
+      ...tail] };
+    return { lead, arrow: 'bottom-center', steps: [[ICON_SHARE, `Toca <b>Compartir</b>${EN('Share')} en la barra de abajo`], homeScreen, ...tail] };
   }
   if (installPrompt) return { lead: 'Un solo toque y la tendrás como cualquier app.', arrow: null, oneTap: true, steps: [] };
-  if (/SamsungBrowser/i.test(UA)) return { lead: 'Es muy fácil, sigue estos pasos:', arrow: 'bottom-right',
-    steps: [['☰', 'Toca <b>☰</b> abajo a la derecha'], [ICON_ADD, 'Toca <b>«Añadir página a»</b>'], ['🏠', 'Elige <b>«Pantalla de inicio»</b>']] };
-  return { lead: 'Es muy fácil, sigue estos pasos:', arrow: 'top-right',
-    steps: [[ICON_KEBAB, 'Toca <b>⋮</b> arriba a la derecha'], [ICON_ADD, 'Toca <b>«Instalar aplicación»</b> o <b>«Añadir a pantalla de inicio»</b>']] };
+  if (/SamsungBrowser/i.test(UA)) return { lead, arrow: 'bottom-right',
+    steps: [['☰', 'Toca <b>☰</b> abajo a la derecha'], [ICON_ADD, `Toca <b>«Añadir página a»</b>${EN('Add page to')}`], ['🏠', `Elige <b>«Pantalla de inicio»</b>${EN('Home screen')}`]] };
+  return { lead, arrow: 'top-right',
+    steps: [[ICON_KEBAB, 'Toca <b>⋮</b> arriba a la derecha'], [ICON_ADD, `Toca <b>«Instalar aplicación»</b>${EN('Install app')} o <b>«Añadir a pantalla de inicio»</b>${EN('Add to Home screen')}`]] };
 }
 function openInstallHelp() {
   const plan = installPlan();
