@@ -154,7 +154,12 @@ input.plate::placeholder { font-weight: 400; letter-spacing: .05em; color: var(-
 .checkin input[type=time] { flex: 1 1 120px; }
 .plate-row { display: flex; gap: 8px; }
 .plate-row input { flex: 1; min-width: 0; }
-.scan-btn { flex: 0 0 56px; font-size: 1.4rem; padding: 8px; }
+.scan-btn { flex: 0 0 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  padding: 6px 4px; background: var(--accent); color: var(--accent-ink); border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(15,122,69,.35); }
+.scan-btn span { font-size: 1.5rem; line-height: 1; }
+.scan-btn small { font-size: .72rem; font-weight: 800; letter-spacing: .02em; }
+.scan-btn:active { transform: scale(.95); }
 .scan-btn:disabled { opacity: .5; }
 body.no-scroll { overflow: hidden; }
 .scanner { position: fixed; inset: 0; z-index: 50; background: #000; }
