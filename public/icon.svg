@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="112" fill="#0f7a45"/>
-  <text x="256" y="330" font-family="Arial, Helvetica, sans-serif" font-size="270" font-weight="700" fill="#fff" text-anchor="middle">P</text>
+  <text x="256" y="300" font-family="Arial, Helvetica, sans-serif" font-size="240" font-weight="700" fill="#fff" text-anchor="middle">P</text>
+  <text x="256" y="408" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="800" fill="#fff" text-anchor="middle" letter-spacing="10">IEB</text>
   <circle cx="380" cy="140" r="64" fill="#f79009"/>
   <rect x="372" y="104" width="16" height="46" rx="6" fill="#fff"/>
   <circle cx="380" cy="168" r="9" fill="#fff"/>
