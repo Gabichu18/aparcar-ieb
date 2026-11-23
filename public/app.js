@@ -530,7 +530,8 @@ function guideSteps(me) {
   const installed = isStandalone || store.get('guide.installed') === '1';
   const pushOn = pushSupported && perm === 'granted' && me.pushDevices > 0;
   let installHow;
-  if (isIOS) installHow = 'En <b>Safari</b>, pulsa <b>Compartir</b> (el cuadrado con la flecha ⬆️) y luego <b>«Añadir a pantalla de inicio»</b>. Después abre Aparcar IEB <b>desde ese icono</b>.';
+  if (isMobile) installHow = 'Así la tienes como cualquier app y te llegan los avisos. Pulsa el botón y te enseñamos dónde tocar.';
+  else if (isIOS) installHow = 'En <b>Safari</b>, pulsa <b>Compartir</b> (el cuadrado con la flecha ⬆️) y luego <b>«Añadir a pantalla de inicio»</b>. Después abre Aparcar IEB <b>desde ese icono</b>.';
   else if (isAndroid) installHow = installPrompt ? 'Pulsa el botón y confirma. Aparecerá el icono de Aparcar IEB en tu móvil.'
     : 'En Chrome, pulsa el menú <b>⋮</b> (arriba a la derecha) y luego <b>«Instalar aplicación»</b> o <b>«Añadir a pantalla de inicio»</b>.';
   else installHow = `Abre <b>${esc(location.host)}</b> en el navegador de tu móvil y añádela a la pantalla de inicio. Así te llegan los avisos aunque no estés en el ordenador.`;
@@ -544,7 +545,7 @@ function guideSteps(me) {
     { n: 2, key: 'car', title: 'Añade la matrícula de tu coche', done: me.plates.length > 0,
       how: 'Escribe tu matrícula abajo y pulsa <b>Añadir</b>. Puedes añadir hasta 3 coches.', btn: ['car', 'Añadir mi coche'] },
     { n: 3, key: 'install', title: 'Instala la app en tu móvil', done: installed, how: installHow,
-      btn: installPrompt ? ['install', 'Instalar la app'] : isIOS ? null : ['installed', 'Ya la tengo instalada'] },
+      btn: isMobile ? ['install', installPrompt ? 'Instalar la app' : 'Cómo instalarla'] : ['installed', 'Ya la tengo instalada'] },
     { n: 4, key: 'push', title: 'Activa las notificaciones', done: pushDone, how: pushHow, btn: pushBtn },
     { n: 5, key: 'test', title: 'Haz una prueba', done: store.get('guide.tested') === '1' || (pushDone && !pushOn),
       how: 'Te mandamos una notificación de prueba para comprobar que te llegan.', btn: pushOn ? ['test', 'Enviarme una prueba'] : null },
@@ -597,13 +598,7 @@ function renderGuide(me) {
   box.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', async () => {
     const act = b.dataset.act;
     if (act === 'car') { $('#newPlate').scrollIntoView({ behavior: 'smooth', block: 'center' }); $('#newPlate').focus(); }
-    else if (act === 'install' && installPrompt) {
-      installPrompt.prompt();
-      const choice = await installPrompt.userChoice.catch(() => ({}));
-      installPrompt = null;
-      if (choice.outcome === 'accepted') store.set('guide.installed', '1');
-      renderGuide(me);
-    }
+    else if (act === 'install') openInstallHelp();
     else if (act === 'installed') { store.set('guide.installed', '1'); renderGuide(me); }
     else if (act === 'push') enablePush();
     else if (act === 'nopush') { store.set('guide.nopush', '1'); renderGuide(me); }
@@ -614,6 +609,75 @@ $('#showGuide').addEventListener('click', () => {
   store.del('guide.hidden'); store.del('guide.seen'); store.del('guide.finished');
   openTab('cars'); window.scrollTo(0, 0);
 });
+
+// ---------- Install helper: shows exactly where to tap to add the app to the home screen ----------
+const UA = navigator.userAgent;
+const isIPad = /ipad/i.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+const inAppBrowser = /Instagram|FBAN|FBAV|FB_IAB|Line\/|LinkedInApp|Snapchat|musical_ly|BytedanceWebview|TikTok|Twitter|GSA\//i.test(UA);
+const iosOtherBrowser = /CriOS|FxiOS|EdgiOS|OPiOS/.test(UA);
+const safariVersion = Number((UA.match(/Version\/(\d+)/) || [])[1] || 0);
+const ICON_SHARE = '<svg viewBox="0 0 24 24" class="i"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10H6.5A1.5 1.5 0 0 0 5 11.5v8A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-8a1.5 1.5 0 0 0-1.5-1.5H16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const ICON_ADD = '<svg viewBox="0 0 24 24" class="i"><rect x="4" y="4" width="16" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const ICON_DOTS = '<span class="i dots">•••</span>';
+const ICON_KEBAB = '<span class="i dots">⋮</span>';
+
+function installPlan() {
+  const browser = isIOS || isIPad ? 'Safari' : 'Chrome';
+  if (inAppBrowser) return {
+    lead: `Estás dentro de otra app. Para instalarla, ábrela primero en ${browser}.`, arrow: 'top-right', copy: true,
+    steps: [[ICON_DOTS, 'Toca <b>⋯</b> arriba a la derecha'], ['🧭', `Elige <b>«Abrir en ${browser}»</b> o «Abrir en el navegador»`]],
+  };
+  if (isIOS || isIPad) {
+    const done = ['🎉', 'Abre <b>Aparcar IEB</b> desde el icono nuevo'];
+    const add = [[ICON_ADD, 'Toca <b>«Añadir a pantalla de inicio»</b> (si no lo ves, desliza hacia abajo)'], ['✅', 'Pulsa <b>«Añadir»</b> arriba a la derecha'], done];
+    if (iosOtherBrowser || isIPad) return { lead: 'Es muy fácil, sigue estos pasos:', arrow: 'top-right', steps: [[ICON_SHARE, 'Toca <b>Compartir</b> arriba a la derecha'], ...add] };
+    if (safariVersion >= 26) return { lead: 'Es muy fácil, sigue estos pasos:', arrow: 'bottom-right', steps: [[ICON_DOTS, 'Toca <b>⋯</b> abajo a la derecha'], [ICON_SHARE, 'Toca <b>Compartir</b>'], ...add] };
+    return { lead: 'Es muy fácil, sigue estos pasos:', arrow: 'bottom-center', steps: [[ICON_SHARE, 'Toca <b>Compartir</b> en la barra de abajo'], ...add] };
+  }
+  if (installPrompt) return { lead: 'Un solo toque y la tendrás como cualquier app.', arrow: null, oneTap: true, steps: [] };
+  if (/SamsungBrowser/i.test(UA)) return { lead: 'Es muy fácil, sigue estos pasos:', arrow: 'bottom-right',
+    steps: [['☰', 'Toca <b>☰</b> abajo a la derecha'], [ICON_ADD, 'Toca <b>«Añadir página a»</b>'], ['🏠', 'Elige <b>«Pantalla de inicio»</b>']] };
+  return { lead: 'Es muy fácil, sigue estos pasos:', arrow: 'top-right',
+    steps: [[ICON_KEBAB, 'Toca <b>⋮</b> arriba a la derecha'], [ICON_ADD, 'Toca <b>«Instalar aplicación»</b> o <b>«Añadir a pantalla de inicio»</b>']] };
+}
+function openInstallHelp() {
+  const plan = installPlan();
+  $('#installLead').textContent = plan.lead;
+  $('#installSteps').innerHTML = plan.steps.map(([ico, txt], i) =>
+    `<li><span class="num">${i + 1}</span><span class="ico">${ico}</span><span>${txt}</span></li>`).join('');
+  const acts = [];
+  if (plan.oneTap) acts.push('<button type="button" class="primary big install-go" data-ia="prompt">📲 Instalar app</button>');
+  if (plan.copy) acts.push('<button type="button" class="secondary" data-ia="copy">🔗 Copiar enlace</button>');
+  if (!isIOS && !isIPad && !plan.copy) acts.push('<button type="button" class="link" data-ia="done">Ya la tengo instalada</button>');
+  acts.push('<button type="button" class="link muted-link" data-ia="later">Ahora no</button>');
+  $('#installActions').innerHTML = acts.join('');
+  const help = $('#installHelp');
+  help.className = 'install-help' + (plan.arrow ? ' arrow-' + plan.arrow : '');
+  $('#installArrow').classList.toggle('hidden', !plan.arrow);
+  help.querySelectorAll('[data-ia]').forEach((b) => b.addEventListener('click', async () => {
+    const a = b.dataset.ia;
+    if (a === 'prompt' && installPrompt) {
+      installPrompt.prompt();
+      const choice = await installPrompt.userChoice.catch(() => ({}));
+      installPrompt = null;
+      if (choice.outcome === 'accepted') { store.set('guide.installed', '1'); closeInstallHelp(); toast('¡Instalada! Búscala en tu pantalla de inicio.'); }
+      else openInstallHelp();
+    } else if (a === 'copy') {
+      try { await navigator.clipboard.writeText(location.origin); toast(`Enlace copiado. Pégalo en ${isIOS || isIPad ? 'Safari' : 'Chrome'}.`); }
+      catch { toast(location.origin); }
+    } else if (a === 'done') { store.set('guide.installed', '1'); closeInstallHelp(); }
+    else { store.set('install.later', String(Date.now())); closeInstallHelp(); }
+  }));
+  help.classList.remove('hidden');
+}
+function closeInstallHelp() { $('#installHelp').classList.add('hidden'); if (lastMe) renderGuide(lastMe); }
+// Show it on its own the first time a phone opens the web (and again a day after "Ahora no").
+function maybeShowInstall() {
+  if (!isMobile || isStandalone || store.get('guide.installed') === '1') return;
+  const later = Number(store.get('install.later') || 0);
+  if (Date.now() - later < 86400e3) return;
+  setTimeout(() => { if ($('#installHelp').classList.contains('hidden')) openInstallHelp(); }, 1200);
+}
 
 // ---------- Start ----------
 async function start() {
@@ -626,6 +690,7 @@ async function start() {
   } catch (err) {
     if (err.status === 401) show('login'); else toast(err.message);
   }
+  maybeShowInstall();
 }
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
