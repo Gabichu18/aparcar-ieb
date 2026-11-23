@@ -27,6 +27,7 @@ const LIMITS = {
   spotReportsPerHour: 20,
   remindMinutes: Number(process.env.REMIND_MINUTES || 2),
   escalateMinutes: Number(process.env.ESCALATE_MINUTES || 10),
+  confirmMovedMinutes: Number(process.env.CONFIRM_MOVED_MINUTES || 2), // after "on my way", ask "moved it?"
   spotReportHours: 3,      // a "free / full" answer is shown for 3 hours
 };
 
@@ -433,6 +434,18 @@ async function main() {
       await Promise.all([
         pushToUser(a.reporter_id, { title: '😕 El dueño no responde', body, url: '/#sent' }),
         telegramToUser(a.reporter_id, (chat) => telegram.sendText(chat, `😕 ${body}`)),
+      ]);
+    }
+
+    // Owner said "on my way" 2 min ago: ask them to confirm once the car is moved.
+    const toConfirm = await db.all("SELECT * FROM alerts WHERE status = 'coming' AND confirm_asked IS NULL AND updated_at < ? AND updated_at > ?",
+      t - LIMITS.confirmMovedMinutes * 60e3, t - 3600e3);
+    for (const a of toConfirm) {
+      await db.run('UPDATE alerts SET confirm_asked = 1 WHERE id = ?', a.id);
+      const body = `Si ya has movido el ${a.plate}, pulsa «Ya lo he movido» para que quien estaba bloqueado pueda salir tranquilo.`;
+      await Promise.all([
+        pushToUser(a.owner_id, { title: '✅ ¿Ya has movido tu coche?', body, url: '/#incoming', alertId: a.id, requireInteraction: true }),
+        telegramToUser(a.owner_id, (chat) => telegram.sendAlert(chat, a.id, `✅ ¿Ya has movido tu coche? ${body}`)),
       ]);
     }
   }
