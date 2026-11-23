@@ -82,6 +82,7 @@ async function main() {
     await db.run('DELETE FROM sessions WHERE expires_at < ?', t);
     await db.run('DELETE FROM alerts WHERE created_at < ?', t - 30 * 86400e3);
     await db.run('DELETE FROM spot_reports WHERE created_at < ?', t - 7 * 86400e3);
+    await db.run('DELETE FROM alert_photos WHERE created_at < ?', t - 86400e3); // photos only kept 24 h
   }
   await cleanup();
   // Pending login codes only live 10 minutes; clearing them on each deploy also resets the
@@ -125,6 +126,8 @@ async function main() {
   // ---------- App ----------
   const app = express();
   app.set('trust proxy', 1);
+  // Alerts may carry a compressed photo (~100-300 KB); everything else stays small.
+  app.use('/api/alerts', express.json({ limit: '2mb' }));
   app.use(express.json({ limit: '20kb' }));
   app.use((req, res, next) => {
     res.set('X-Content-Type-Options', 'nosniff');
@@ -279,6 +282,16 @@ async function main() {
     const zoneDef = zones.find((z) => z.id === zone);
     if (!zoneDef) return res.status(400).json({ error: 'Elige una zona.' });
     const spot = req.body.spot ? Spot.snap(zoneDef, req.body.spot.x, req.body.spot.y) : null;
+    // Optional photo: a JPEG re-encoded in the browser (which also strips GPS/EXIF data).
+    let photo = null;
+    if (req.body.photo) {
+      const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body.photo));
+      const bytes = m ? Buffer.from(m[1], 'base64') : null;
+      if (!bytes || bytes.length > 1.2e6 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+        return res.status(400).json({ error: 'La foto no es válida o es demasiado grande.' });
+      }
+      photo = m[1];
+    }
 
     const sentLastHour = Number((await db.get('SELECT COUNT(*) AS n FROM alerts WHERE reporter_id = ? AND created_at > ?',
       req.user.id, now() - 3600e3)).n);
@@ -306,9 +319,10 @@ async function main() {
       req.user.id, owner ? owner.user_id : null, plate, zone, note, status, now(), now(),
       spot ? spot.x : null, spot ? spot.y : null, spot ? spot.label : null);
     const alertId = Number(inserted.id);
+    if (photo) await db.run('INSERT INTO alert_photos (alert_id, data, created_at) VALUES (?, ?, ?)', alertId, photo, now());
 
     if (owner) {
-      const body = `Tu coche ${plate} está bloqueando a alguien en ${zoneName(zone)}${spot ? ' (' + spot.label + ')' : ''}.${note ? ' Nota: ' + note : ''}`;
+      const body = `Tu coche ${plate} está bloqueando a alguien en ${zoneName(zone)}${spot ? ' (' + spot.label + ')' : ''}.${note ? ' Nota: ' + note : ''}${photo ? ' 📷 Con foto: ábrela en la app.' : ''}`;
       await Promise.all([
         pushToUser(owner.user_id, { title: '🚗 Por favor, mueve tu coche', body, url: '/#incoming', alertId, requireInteraction: true }),
         sendMail(owner.email, `Tu coche ${plate} está bloqueando a alguien`,
@@ -323,10 +337,10 @@ async function main() {
   app.get('/api/alerts', auth, h(async (req, res) => {
     const since = now() - 86400e3;
     const sent = await db.all(
-      'SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot, escalated FROM alerts WHERE reporter_id = ? AND created_at > ? ORDER BY created_at DESC',
+      'SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot, escalated, (SELECT COUNT(*) FROM alert_photos p WHERE p.alert_id = alerts.id) AS photo FROM alerts WHERE reporter_id = ? AND created_at > ? ORDER BY created_at DESC',
       req.user.id, since);
     const incoming = await db.all(
-      "SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot FROM alerts WHERE owner_id = ? AND created_at > ? AND status <> 'not_registered' ORDER BY created_at DESC",
+      "SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot, (SELECT COUNT(*) FROM alert_photos p WHERE p.alert_id = alerts.id) AS photo FROM alerts WHERE owner_id = ? AND created_at > ? AND status <> 'not_registered' ORDER BY created_at DESC",
       req.user.id, since);
     res.json({ sent, incoming });
   }));
@@ -336,6 +350,16 @@ async function main() {
     const row = await db.get('SELECT chat_id FROM telegram_chats WHERE user_id = ?', userId);
     if (row) await send(row.chat_id);
   }
+
+  // The alert's photo: only the person who sent it and the car's owner can see it.
+  app.get('/api/alerts/:id/photo', auth, h(async (req, res) => {
+    const row = await db.get(
+      'SELECT p.data FROM alert_photos p JOIN alerts a ON a.id = p.alert_id WHERE p.alert_id = ? AND (a.owner_id = ? OR a.reporter_id = ?)',
+      Number(req.params.id), req.user.id, req.user.id);
+    if (!row) return res.sendStatus(404);
+    res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400' });
+    res.send(Buffer.from(row.data, 'base64'));
+  }));
 
   // Owner answers "coming" (on my way) or "moved" (done). Used by the app and by Telegram buttons.
   async function respondToAlert(ownerId, alertId, status) {

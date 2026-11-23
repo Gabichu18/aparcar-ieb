@@ -113,7 +113,7 @@ $('#alertForm').addEventListener('submit', async (e) => {
   if (!selectedZone) return toast('Elige primero la zona.');
   try {
     const plate = $('#alertPlate').value;
-    const res = await api('/api/alerts', { body: { zone: selectedZone, spot: selectedSpot, plate, note: $('#alertNote').value } });
+    const res = await api('/api/alerts', { body: { zone: selectedZone, spot: selectedSpot, plate, note: $('#alertNote').value, photo: alertPhoto } });
     r.classList.remove('hidden', 'ok', 'warn');
     if (res.status === 'notified') {
       r.classList.add('ok');
@@ -122,7 +122,7 @@ $('#alertForm').addEventListener('submit', async (e) => {
       r.classList.add('warn');
       r.textContent = 'Esta matrícula no está registrada en la app, así que no podemos avisar al dueño. Prueba con recepción o seguridad del campus.';
     }
-    $('#alertPlate').value = ''; $('#alertNote').value = ''; selectZone(null); $('#scanState').classList.add('hidden');
+    $('#alertPlate').value = ''; $('#alertNote').value = ''; selectZone(null); $('#scanState').classList.add('hidden'); setPhoto(null);
   } catch (err) { toast(err.message); }
 });
 
@@ -260,6 +260,39 @@ $('#scanFile').addEventListener('change', async (e) => {
   } finally { $('#scanPlate').disabled = false; }
 });
 
+// ---------- Photo for the alert ----------
+// The photo is shrunk and re-saved as JPEG on the phone (~150 KB). Re-saving also removes the
+// hidden GPS/EXIF data, so nothing about where the sender lives or who they are travels with it.
+let alertPhoto = null;
+function setPhoto(dataUrl) {
+  alertPhoto = dataUrl;
+  $('#photoBtn').classList.toggle('hidden', !!dataUrl);
+  $('#photoPreview').classList.toggle('hidden', !dataUrl);
+  if (dataUrl) $('#photoImg').src = dataUrl; else $('#photoImg').removeAttribute('src');
+}
+async function compressPhoto(file) {
+  const img = await createImageBitmap(file, { imageOrientation: 'from-image' }).catch(() => createImageBitmap(file));
+  const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  let q = 0.72, url = c.toDataURL('image/jpeg', q);
+  while (url.length > 1.4e6 && q > 0.35) { q -= 0.12; url = c.toDataURL('image/jpeg', q); }
+  return url;
+}
+$('#photoBtn').addEventListener('click', () => $('#photoFile').click());
+$('#photoChange').addEventListener('click', () => $('#photoFile').click());
+$('#photoRemove').addEventListener('click', () => setPhoto(null));
+$('#photoFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  try { setPhoto(await compressPhoto(file)); } catch { toast('No se pudo abrir la foto. Prueba con otra.'); }
+});
+function openLightbox(src) {
+  const lb = $('#lightbox'); lb.querySelector('img').src = src; lb.classList.remove('hidden');
+}
+$('#lightbox').addEventListener('click', () => $('#lightbox').classList.add('hidden'));
+
 // ---------- Activity ----------
 async function loadAlerts() {
   try {
@@ -270,6 +303,7 @@ async function loadAlerts() {
         <div>Bloqueando a alguien en <b>${esc(zoneName(a.zone))}</b>${a.spot ? `, ${esc(a.spot)}` : ''}</div>
         ${a.spot_x != null ? `<div class="mini-map" data-x="${a.spot_x}" data-y="${a.spot_y}" data-zone="${esc(a.zone)}"></div>` : ''}
         ${a.note ? `<div class="meta">“${esc(a.note)}”</div>` : ''}
+        ${a.photo ? `<button type="button" class="alert-photo" data-photo="/api/alerts/${a.id}/photo"><img loading="lazy" src="/api/alerts/${a.id}/photo" alt="Foto del aviso"><span>📷 Ver foto</span></button>` : ''}
         <div class="meta">${ago(a.created_at)}</div>
         ${a.status === 'moved' ? '' : `<div class="actions">
           ${a.status === 'notified' ? `<button class="primary" data-respond="coming" data-id="${a.id}">Voy de camino</button>` : ''}
@@ -279,9 +313,10 @@ async function loadAlerts() {
     $('#sentList').innerHTML = sent.length ? sent.map((a) => `
       <div class="item">
         <div class="head"><span class="plate-tag">${esc(fmtPlate(a.plate))}</span><span class="pill ${a.status}">${STATUS[a.status]}</span></div>
-        <div class="meta">${esc(zoneName(a.zone))}${a.spot ? `, ${esc(a.spot)}` : ''} · ${ago(a.created_at)}</div>
+        <div class="meta">${esc(zoneName(a.zone))}${a.spot ? `, ${esc(a.spot)}` : ''} · ${ago(a.created_at)}${a.photo ? ' · 📷 con foto' : ''}</div>
         ${a.status === 'notified' && a.escalated ? '<div class="note">😕 El dueño aún no ha respondido. Prueba a avisar en conserjería o a seguridad del campus.</div>' : ''}
       </div>`).join('') : '<div class="empty">No has enviado ningún aviso.</div>';
+    $('#incomingList').querySelectorAll('[data-photo]').forEach((b) => b.addEventListener('click', () => openLightbox(b.dataset.photo)));
     $('#incomingList').querySelectorAll('.mini-map').forEach((m) => {
       const x = Number(m.dataset.x), y = Number(m.dataset.y);
       ZoneMap.create(m, { zones: config.zones, readOnly: true, view: ZoneMap.viewAround(x, y) }).select(m.dataset.zone, { x, y });

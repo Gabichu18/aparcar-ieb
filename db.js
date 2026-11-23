@@ -52,6 +52,11 @@ const TABLES = (pg) => `
   CREATE INDEX IF NOT EXISTS alerts_reporter ON alerts(reporter_id, created_at);
   CREATE INDEX IF NOT EXISTS alerts_owner ON alerts(owner_id, created_at);
   CREATE INDEX IF NOT EXISTS alerts_plate ON alerts(plate, created_at);
+  CREATE TABLE IF NOT EXISTS alert_photos (
+    alert_id BIGINT PRIMARY KEY REFERENCES alerts(id) ON DELETE CASCADE,
+    data TEXT NOT NULL,
+    created_at BIGINT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS checkin_prefs (
     user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     time TEXT NOT NULL,

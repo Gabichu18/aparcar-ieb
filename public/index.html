@@ -72,6 +72,18 @@
         <label>3. Nota (opcional)
           <input id="alertNote" maxlength="140" placeholder="p. ej. Coche gris delante de la rampa del garaje">
         </label>
+        <div class="photo-pick">
+          <input id="photoFile" type="file" accept="image/*" class="hidden">
+          <button type="button" id="photoBtn" class="photo-btn">
+            <span class="photo-ico">📸</span>
+            <span><b>Añadir una foto</b><small>Opcional · Así el dueño ve el problema al momento</small></span>
+          </button>
+          <div id="photoPreview" class="photo-preview hidden">
+            <img id="photoImg" alt="Foto que vas a enviar">
+            <button type="button" id="photoRemove" class="photo-remove" aria-label="Quitar la foto">✕</button>
+            <button type="button" id="photoChange" class="link">Cambiar foto</button>
+          </div>
+        </div>
         <button class="primary big" type="submit">Enviar aviso</button>
       </form>
       <div id="alertResult" class="result hidden"></div>
@@ -158,6 +170,8 @@
     <div class="scan-actions"><button type="button" id="scanCancel" class="secondary">Cancelar</button>
       <button type="button" id="scanPhoto" class="secondary">Subir una foto</button></div>
   </div>
+
+  <div id="lightbox" class="lightbox hidden" role="dialog" aria-label="Foto del aviso"><img alt="Foto del aviso"><button type="button" class="secondary">Cerrar</button></div>
 
   <div id="toast" class="toast hidden"></div>
   <script src="/spot.js"></script>
