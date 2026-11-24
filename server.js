@@ -31,7 +31,8 @@ const LIMITS = {
   escalateMinutes: Number(process.env.ESCALATE_MINUTES || 10),
   confirmMovedMinutes: Number(process.env.CONFIRM_MOVED_MINUTES || 2), // after "on my way", ask "moved it?"
   maxReminders: 6,          // reminders to the owner stop after 6 (about 12 minutes)
-  spotReportHours: 3,      // a "free / full" answer is shown for 3 hours
+  spotReportHours: 3,
+  spotVotesNeeded: 2,      // people who must agree before a zone shows as free / full      // a "free / full" answer is shown for 3 hours
 };
 
 // Campus location, to check that people answering "are there free spots?" are really there.
@@ -282,6 +283,7 @@ async function main() {
     const plate = normalizePlate(req.body.plate);
     const zone = String(req.body.zone || '');
     const note = String(req.body.note || '').trim().slice(0, 140);
+    const car = String(req.body.car || '').trim().replace(/\s+/g, ' ').slice(0, 60);
     if (!validPlate(plate)) return res.status(400).json({ error: 'Introduce una matrícula válida.' });
     const zoneDef = zones.find((z) => z.id === zone);
     if (!zoneDef) return res.status(400).json({ error: 'Elige una zona.' });
@@ -319,14 +321,14 @@ async function main() {
 
     const status = owner ? 'notified' : 'not_registered';
     const inserted = await db.get(
-      'INSERT INTO alerts (reporter_id, owner_id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
+      'INSERT INTO alerts (reporter_id, owner_id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot, car) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id',
       req.user.id, owner ? owner.user_id : null, plate, zone, note, status, now(), now(),
-      spot ? spot.x : null, spot ? spot.y : null, spot ? spot.label : null);
+      spot ? spot.x : null, spot ? spot.y : null, spot ? spot.label : null, car || null);
     const alertId = Number(inserted.id);
     if (photo) await db.run('INSERT INTO alert_photos (alert_id, data, created_at) VALUES (?, ?, ?)', alertId, photo, now());
 
     if (owner) {
-      const body = `Tu coche ${plate} está bloqueando a alguien en ${zoneName(zone)}${spot ? ' (' + spot.label + ')' : ''}.${note ? ' Nota: ' + note : ''}${photo ? ' 📷 Con foto: ábrela en la app.' : ''}`;
+      const body = `Tu coche ${plate}${car ? ' (' + car + ')' : ''} está bloqueando a alguien en ${zoneName(zone)}${spot ? ' (' + spot.label + ')' : ''}.${note ? ' Nota: ' + note : ''}${photo ? ' 📷 Con foto: ábrela en la app.' : ''}`;
       await Promise.all([
         pushToUser(owner.user_id, { title: '🚗 Por favor, mueve tu coche', body, url: '/#incoming', alertId, requireInteraction: true }),
         sendMail(owner.email, `Tu coche ${plate} está bloqueando a alguien`,
@@ -341,10 +343,10 @@ async function main() {
   app.get('/api/alerts', auth, h(async (req, res) => {
     const since = now() - 86400e3;
     const sent = await db.all(
-      'SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot, escalated, (SELECT COUNT(*) FROM alert_photos p WHERE p.alert_id = alerts.id) AS photo FROM alerts WHERE reporter_id = ? AND created_at > ? ORDER BY created_at DESC',
+      'SELECT id, plate, car, zone, note, status, created_at, updated_at, spot_x, spot_y, spot, escalated, (SELECT COUNT(*) FROM alert_photos p WHERE p.alert_id = alerts.id) AS photo FROM alerts WHERE reporter_id = ? AND created_at > ? ORDER BY created_at DESC',
       req.user.id, since);
     const incoming = await db.all(
-      "SELECT id, plate, zone, note, status, created_at, updated_at, spot_x, spot_y, spot, (SELECT COUNT(*) FROM alert_photos p WHERE p.alert_id = alerts.id) AS photo FROM alerts WHERE owner_id = ? AND created_at > ? AND status <> 'not_registered' ORDER BY created_at DESC",
+      "SELECT id, plate, car, zone, note, status, created_at, updated_at, spot_x, spot_y, spot, (SELECT COUNT(*) FROM alert_photos p WHERE p.alert_id = alerts.id) AS photo FROM alerts WHERE owner_id = ? AND created_at > ? AND status <> 'not_registered' ORDER BY created_at DESC",
       req.user.id, since);
     res.json({ sent, incoming });
   }));
@@ -420,7 +422,7 @@ async function main() {
       FROM users u ORDER BY u.created_at DESC LIMIT 1000`);
     const plates = await db.all('SELECT user_id, plate, label FROM plates');
     for (const u of users) u.plates = plates.filter((p) => p.user_id === u.id).map((p) => ({ plate: p.plate, label: p.label }));
-    const alerts = await db.all(`SELECT id, plate, zone, spot, status, created_at,
+    const alerts = await db.all(`SELECT id, plate, car, zone, spot, status, created_at,
         (SELECT COUNT(*) FROM alert_photos p WHERE p.alert_id = alerts.id) AS photo
       FROM alerts WHERE created_at > ? ORDER BY created_at DESC LIMIT 300`, now() - 30 * 86400e3);
     res.json({ users: users.map(({ id, ...u }) => u), alerts });
@@ -488,13 +490,32 @@ async function main() {
   }
   setInterval(() => alertTick().catch(console.error), 15e3).unref();
 
+  // A zone's status only changes when 2 different people agree (each person's latest vote counts).
   app.get('/api/parking', auth, h(async (req, res) => {
     const since = now() - LIMITS.spotReportHours * 3600e3;
-    const rows = await db.all('SELECT zone, status, created_at FROM spot_reports WHERE created_at > ? ORDER BY created_at DESC', since);
-    const latest = {};
-    for (const r of rows) if (!latest[r.zone]) latest[r.zone] = { status: r.status, at: r.created_at };
+    const rows = await db.all('SELECT user_id, zone, status, created_at FROM spot_reports WHERE created_at > ? ORDER BY created_at DESC', since);
+    const status = {}, pending = {}, mine = {};
+    for (const z of zones) {
+      const seen = new Set(), votes = [];
+      for (const r of rows) if (r.zone === z.id && !seen.has(r.user_id)) { seen.add(r.user_id); votes.push(r); }
+      const count = { free: 0, full: 0 };
+      for (const v of votes) { // newest first: the first answer that reaches 2 people is the confirmed one
+        count[v.status]++;
+        if (count[v.status] >= LIMITS.spotVotesNeeded) {
+          status[z.id] = { status: v.status, at: votes.find((x) => x.status === v.status).created_at, votes: votes.filter((x) => x.status === v.status).length };
+          break;
+        }
+      }
+      const newest = votes[0];
+      if (newest && (!status[z.id] || status[z.id].status !== newest.status)) {
+        const n = votes.filter((x) => x.status === newest.status).length;
+        pending[z.id] = { status: newest.status, votes: n, needed: LIMITS.spotVotesNeeded - n, at: newest.created_at };
+      }
+      const my = votes.find((x) => x.user_id === req.user.id);
+      if (my) mine[z.id] = my.status;
+    }
     const pref = await db.get('SELECT time FROM checkin_prefs WHERE user_id = ?', req.user.id);
-    res.json({ status: latest, time: pref ? pref.time : null, needsLocation: Boolean(CAMPUS) });
+    res.json({ status, pending, mine, time: pref ? pref.time : null, needsLocation: Boolean(CAMPUS) });
   }));
 
   app.post('/api/parking/report', auth, h(async (req, res) => {

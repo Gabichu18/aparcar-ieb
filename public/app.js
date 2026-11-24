@@ -113,7 +113,7 @@ $('#alertForm').addEventListener('submit', async (e) => {
   if (!selectedZone) return toast('Elige primero la zona.');
   try {
     const plate = $('#alertPlate').value;
-    const res = await api('/api/alerts', { body: { zone: selectedZone, spot: selectedSpot, plate, note: $('#alertNote').value, photo: alertPhoto } });
+    const res = await api('/api/alerts', { body: { zone: selectedZone, spot: selectedSpot, plate, note: $('#alertNote').value, car: $('#alertCar').value, photo: alertPhoto } });
     r.classList.remove('hidden', 'ok', 'warn');
     if (res.status === 'notified') {
       r.classList.add('ok');
@@ -122,7 +122,7 @@ $('#alertForm').addEventListener('submit', async (e) => {
       r.classList.add('warn');
       r.textContent = 'Esta matrícula no está registrada en la app, así que no podemos avisar al dueño. Prueba con recepción o seguridad del campus.';
     }
-    $('#alertPlate').value = ''; $('#alertNote').value = ''; selectZone(null); $('#scanState').classList.add('hidden'); setPhoto(null);
+    $('#alertPlate').value = ''; $('#alertNote').value = ''; $('#alertCar').value = ''; selectZone(null); $('#scanState').classList.add('hidden'); setPhoto(null);
   } catch (err) { toast(err.message); }
 });
 
@@ -300,6 +300,7 @@ async function loadAlerts() {
     $('#incomingList').innerHTML = incoming.length ? incoming.map((a) => `
       <div class="item">
         <div class="head"><span class="plate-tag">${esc(fmtPlate(a.plate))}</span><span class="pill ${a.status}">${STATUS[a.status]}</span></div>
+        ${a.car ? `<div class="car-desc">🚘 ${esc(a.car)}</div>` : ''}
         <div>Bloqueando a alguien en <b>${esc(zoneName(a.zone))}</b>${a.spot ? `, ${esc(a.spot)}` : ''}</div>
         ${a.spot_x != null ? `<div class="mini-map" data-x="${a.spot_x}" data-y="${a.spot_y}" data-zone="${esc(a.zone)}"></div>` : ''}
         ${a.note ? `<div class="meta">“${esc(a.note)}”</div>` : ''}
@@ -313,6 +314,7 @@ async function loadAlerts() {
     $('#sentList').innerHTML = sent.length ? sent.map((a) => `
       <div class="item">
         <div class="head"><span class="plate-tag">${esc(fmtPlate(a.plate))}</span><span class="pill ${a.status}">${STATUS[a.status]}</span></div>
+        ${a.car ? `<div class="car-desc">🚘 ${esc(a.car)}</div>` : ''}
         <div class="meta">${esc(zoneName(a.zone))}${a.spot ? `, ${esc(a.spot)}` : ''} · ${ago(a.created_at)}${a.photo ? ' · 📷 con foto' : ''}</div>
         ${a.status === 'notified' && a.escalated ? '<div class="note">😕 El dueño aún no ha respondido. Prueba a avisar en conserjería o a seguridad del campus.</div>' : ''}
       </div>`).join('') : '<div class="empty">No has enviado ningún aviso.</div>';
@@ -345,32 +347,40 @@ function getPosition() {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
   });
 }
+const STATUS_PILL = { free: '<span class="pill moved">Hay sitio</span>', full: '<span class="pill not_registered">Lleno</span>' };
+const STATUS_WORD = { free: 'Hay sitio', full: 'Lleno' };
+function renderParkingStatus() {
+  const { status, pending } = parkingInfo;
+  $('#parkingStatus').innerHTML = config.zones.map((z, i) => {
+    const r = status[z.id], p = pending[z.id];
+    const pill = r ? STATUS_PILL[r.status] : '<span class="pill">Sin confirmar</span>';
+    return `<div class="item"><div class="head"><span><b>${i + 1}. ${esc(z.name)}</b></span>${pill}</div>
+      ${r ? `<div class="meta">Confirmado por ${r.votes} personas · ${ago(r.at)}</div>` : ''}
+      ${p ? `<div class="vote-pending">🕐 ${p.votes} ${p.votes === 1 ? 'persona dice' : 'personas dicen'} «${STATUS_WORD[p.status]}» · falta${p.needed === 1 ? '' : 'n'} ${p.needed} más para confirmar</div>` : ''}
+      ${!r && !p ? '<div class="meta">Nadie ha dicho nada todavía</div>' : ''}</div>`;
+  }).join('');
+  $('#parkingReport').querySelectorAll('[data-status]').forEach((x) =>
+    x.classList.toggle('chosen', parkingInfo.mine[x.dataset.zone] === x.dataset.status));
+}
 async function loadParking() {
   try { parkingInfo = await api('/api/parking'); } catch (err) { return toast(err.message); }
-  const st = parkingInfo.status;
-  $('#parkingStatus').innerHTML = config.zones.map((z, i) => {
-    const r = st[z.id];
-    const pill = !r ? '<span class="pill">Sin datos</span>'
-      : r.status === 'free' ? '<span class="pill moved">Hay sitio</span>' : '<span class="pill not_registered">Lleno</span>';
-    return `<div class="item"><div class="head"><span><b>${i + 1}. ${esc(z.name)}</b></span>${pill}</div>
-      ${r ? `<div class="meta">${ago(r.at)}</div>` : ''}</div>`;
-  }).join('');
-  $('#parkingHint').textContent = parkingInfo.needsLocation
+  $('#parkingHint').textContent = (parkingInfo.needsLocation
     ? 'Toca cómo está cada zona (solo las que hayas visto). Te pediremos la ubicación para comprobar que estás en el IEB.'
-    : 'Toca cómo está cada zona. Solo las que hayas visto.';
+    : 'Toca cómo está cada zona. Solo las que hayas visto.') + ' Cambia cuando lo confirman 2 personas distintas.';
   $('#parkingReport').innerHTML = config.zones.map((z, i) => `
     <div class="item report-row"><b>${i + 1}. ${esc(z.name)}</b>
       <div class="actions"><button type="button" class="secondary" data-zone="${esc(z.id)}" data-status="free">✅ Hay sitio</button>
       <button type="button" class="secondary" data-zone="${esc(z.id)}" data-status="full">⛔ Lleno</button></div></div>`).join('');
+  renderParkingStatus();
   $('#parkingReport').querySelectorAll('[data-status]').forEach((b) => b.addEventListener('click', async () => {
     try {
       const body = { zone: b.dataset.zone, status: b.dataset.status };
       if (parkingInfo.needsLocation) Object.assign(body, await getPosition());
       await api('/api/parking/report', { body });
-      b.parentElement.querySelectorAll('button').forEach((x) => x.classList.toggle('chosen', x === b));
-      toast('¡Gracias! Los demás ya lo pueden ver.');
-      const st2 = await api('/api/parking'); parkingInfo.status = st2.status;
-      loadParkingStatusOnly();
+      parkingInfo = { ...parkingInfo, ...(await api('/api/parking')) };
+      renderParkingStatus();
+      const confirmed = parkingInfo.status[body.zone] && parkingInfo.status[body.zone].status === body.status;
+      toast(confirmed ? '¡Gracias! Confirmado: los demás ya lo ven.' : '¡Gracias! Cuando otra persona diga lo mismo, se confirmará.');
     } catch (err) { toast(err.message); }
   }));
   const t = parkingInfo.time;
@@ -379,15 +389,6 @@ async function loadParking() {
     ? `✅ Te preguntaremos a las ${t}, de lunes a viernes.`
     : 'El aviso diario está desactivado. Elige tu hora y pulsa Guardar.';
   $('#checkinOff').classList.toggle('hidden', !t);
-}
-function loadParkingStatusOnly() {
-  const st = parkingInfo.status;
-  $('#parkingStatus').querySelectorAll('.item').forEach((el, i) => {
-    const r = st[config.zones[i].id]; if (!r) return;
-    el.querySelector('.pill').outerHTML = r.status === 'free' ? '<span class="pill moved">Hay sitio</span>' : '<span class="pill not_registered">Lleno</span>';
-    const meta = el.querySelector('.meta');
-    if (meta) meta.textContent = ago(r.at); else el.insertAdjacentHTML('beforeend', `<div class="meta">${ago(r.at)}</div>`);
-  });
 }
 $('#checkinForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -443,7 +444,7 @@ function renderRecords() {
     </div>`).join('') || '<div class="empty">Nadie coincide.</div>';
   $('#adminAlerts').innerHTML = alerts.map((a) => `
     <div class="item rec"><div class="head"><span class="plate-tag">${esc(fmtPlate(a.plate))}</span><span class="pill ${a.status}">${STATUS[a.status]}</span></div>
-      <div class="meta">${esc(zoneName(a.zone))}${a.spot ? ', ' + esc(a.spot) : ''}${a.photo ? ' · 📷' : ''} · ${fmtDate(a.created_at)}</div>
+      <div class="meta">${a.car ? '🚘 ' + esc(a.car) + ' · ' : ''}${esc(zoneName(a.zone))}${a.spot ? ', ' + esc(a.spot) : ''}${a.photo ? ' · 📷' : ''} · ${fmtDate(a.created_at)}</div>
     </div>`).join('') || '<div class="empty">No hay avisos.</div>';
 }
 $('#records').addEventListener('toggle', () => { if ($('#records').open && !records) loadRecords(); });

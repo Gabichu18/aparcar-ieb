@@ -256,3 +256,6 @@ body.no-scroll { overflow: hidden; }
 .records h3 { font-size: 1rem; margin: 16px 0 8px; }
 .records input[type=search] { margin-top: 10px; }
 .rec .rec-email { word-break: break-all; font-size: .95rem; }
+.car-desc { font-weight: 600; margin: 2px 0; }
+.vote-pending { margin-top: 6px; font-size: .85rem; color: #93370d; background: #fef0c7; border-radius: 8px; padding: 6px 10px; }
+@media (prefers-color-scheme: dark) { .vote-pending { background: #3a2410; color: #fcd9b6; } }
