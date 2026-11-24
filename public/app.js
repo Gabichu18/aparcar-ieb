@@ -537,7 +537,7 @@ function guideSteps(me) {
       : plan.lead.replace('Es muy fácil, sigue estos pasos:', 'Así te llegan los avisos como en cualquier app:'))
       + (plan.steps.length ? '<ol class="mini-steps">' + plan.steps.map(([, t]) => `<li>${t}</li>`).join('') + '</ol>' : '');
   }
-  else if (isIOS) installHow = 'En <b>Safari</b>, toca los <b>tres puntitos ⋯</b> y luego <b>«Añadir a pantalla de inicio»</b> (Add to Home Screen). Después abre Aparcar IEB <b>desde ese icono</b>.';
+  else if (isIOS) installHow = 'En <b>Safari</b>, toca los <b>tres puntitos ⋯</b>, luego <b>Compartir</b> (Share) y después <b>«Añadir a pantalla de inicio»</b> (Add to Home Screen). Después abre Aparcar IEB <b>desde ese icono</b>.';
   else if (isAndroid) installHow = installPrompt ? 'Pulsa el botón y confirma. Aparecerá el icono de Aparcar IEB en tu móvil.'
     : 'En Chrome, pulsa el menú <b>⋮</b> (arriba a la derecha) y luego <b>«Instalar aplicación»</b> o <b>«Añadir a pantalla de inicio»</b>.';
   else installHow = `Abre <b>${esc(location.host)}</b> en el navegador de tu móvil y añádela a la pantalla de inicio. Así te llegan los avisos aunque no estés en el ordenador.`;
@@ -642,7 +642,8 @@ function installPlan() {
     if (iosOtherBrowser || isIPad) return { lead, arrow: 'top-right', steps: [[ICON_SHARE, `Toca <b>Compartir</b>${EN('Share')} arriba a la derecha`], homeScreen, ...tail] };
     if (safariVersion >= 26) return { lead, arrow: 'bottom-right', steps: [
       [ICON_DOTS, 'Toca los <b>tres puntitos ⋯</b> abajo a la derecha'],
-      [ICON_ADD, `Toca <b>«Añadir a pantalla de inicio»</b>${EN('Add to Home Screen')}<small class="hint">Si no lo ves, toca antes <b>Compartir</b>${EN('Share')} y búscalo ahí</small>`],
+      [ICON_SHARE, `Toca <b>Compartir</b>${EN('Share')}`],
+      [ICON_ADD, `Toca <b>«Añadir a pantalla de inicio»</b>${EN('Add to Home Screen')}<small class="hint">Si no lo ves, desliza hacia abajo</small>`],
       ...tail] };
     return { lead, arrow: 'bottom-center', steps: [[ICON_SHARE, `Toca <b>Compartir</b>${EN('Share')} en la barra de abajo`], homeScreen, ...tail] };
   }
