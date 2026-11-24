@@ -403,6 +403,27 @@ $('#checkinOff').addEventListener('click', async () => {
   toast('Aviso diario desactivado.'); loadParking();
 });
 
+// ---------- Admin statistics (totals only) ----------
+async function loadStats() {
+  loadStats.done = true;
+  try {
+    const st = await api('/api/admin/stats');
+    const pct = (a, b) => (b ? Math.round(a / b * 100) + '%' : '–');
+    const tiles = [
+      ['👥', st.users, 'personas registradas', `+${st.users7} esta semana`],
+      ['🚗', st.withCar, 'con coche registrado', `${st.cars} matrículas en total`],
+      ['🔔', st.withPush, 'con notificaciones', `${pct(st.withPush, st.users)} de los usuarios`],
+      ['📣', st.alerts7, 'avisos esta semana', `${st.alerts30 + st.notRegistered30} en 30 días`],
+      ['✅', pct(st.answered30, st.alerts30), 'avisos respondidos', 'por el dueño (30 días)'],
+      ['❓', st.notRegistered30, 'matrículas no registradas', 'avisos sin dueño (30 días)'],
+      ['🅿️', st.daily, 'con aviso diario', 'de sitios libres'],
+    ];
+    $('#statsGrid').innerHTML = tiles.map(([i, v, l, sub]) =>
+      `<div class="stat"><span class="stat-i">${i}</span><b>${esc(String(v))}</b><span>${esc(l)}</span><small>${esc(sub)}</small></div>`).join('');
+  } catch (err) { $('#statsGrid').textContent = 'No se pudieron cargar las estadísticas.'; }
+}
+$('#statsRefresh').addEventListener('click', loadStats);
+
 // ---------- Telegram ----------
 function updateTelegram(tg) {
   $('#tgBox').classList.toggle('hidden', !tg.enabled);
@@ -443,6 +464,8 @@ async function loadMe() {
   updatePushStatus(me.pushDevices);
   updateTelegram(me.telegram || {});
   renderGuide(me);
+  $('#statsBox').classList.toggle('hidden', !me.admin);
+  if (me.admin && !loadStats.done) loadStats();
   return me;
 }
 $('#plateForm').addEventListener('submit', async (e) => {

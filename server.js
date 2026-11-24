@@ -13,6 +13,8 @@ const telegram = require('./telegram');
 const PORT = Number(process.env.PORT || 3000);
 const APP_URL = (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 // Comma-separated list of allowed email domains.
+// Emails that can see the usage statistics (totals only, no personal data). Comma separated.
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').toLowerCase().split(',').map((e) => e.trim()).filter(Boolean);
 const ALLOWED_DOMAINS = (process.env.ALLOWED_EMAIL_DOMAINS || 'ieb.es,alumni-ieb.es')
   .split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
 const DEV_MODE = mailMode === 'console'; // no email service set up: codes are printed in the logs
@@ -222,7 +224,7 @@ async function main() {
     const plates = await db.all('SELECT plate, label FROM plates WHERE user_id = ? ORDER BY created_at', req.user.id);
     const pushDevices = Number((await db.get('SELECT COUNT(*) AS n FROM push_subs WHERE user_id = ?', req.user.id)).n);
     const tg = telegram.enabled && await db.get('SELECT chat_id FROM telegram_chats WHERE user_id = ?', req.user.id);
-    res.json({ email: req.user.email, plates, pushDevices, telegram: { enabled: telegram.enabled, linked: Boolean(tg) } });
+    res.json({ email: req.user.email, plates, pushDevices, telegram: { enabled: telegram.enabled, linked: Boolean(tg) }, admin: ADMIN_EMAILS.includes(req.user.email) });
   }));
 
   // GDPR: delete the account and everything linked to it.
@@ -386,6 +388,27 @@ async function main() {
       return res.status(404).json({ error: 'Aviso no encontrado' });
     }
     res.json({ ok: true });
+  }));
+
+  // ---------- Usage statistics for the app's admins: only totals, never who is who ----------
+  app.get('/api/admin/stats', auth, h(async (req, res) => {
+    if (!ADMIN_EMAILS.includes(req.user.email)) return res.sendStatus(403);
+    const n = async (sql, ...p) => Number((await db.get(sql, ...p)).n);
+    const t = now(), d7 = t - 7 * 86400e3, d30 = t - 30 * 86400e3;
+    const [users, users7, withCar, cars, withPush, alerts7, alerts30, answered30, photos, daily] = await Promise.all([
+      n('SELECT COUNT(*) AS n FROM users'),
+      n('SELECT COUNT(*) AS n FROM users WHERE created_at > ?', d7),
+      n('SELECT COUNT(DISTINCT user_id) AS n FROM plates'),
+      n('SELECT COUNT(*) AS n FROM plates'),
+      n('SELECT COUNT(DISTINCT user_id) AS n FROM push_subs'),
+      n('SELECT COUNT(*) AS n FROM alerts WHERE created_at > ?', d7),
+      n("SELECT COUNT(*) AS n FROM alerts WHERE created_at > ? AND status <> 'not_registered'", d30),
+      n("SELECT COUNT(*) AS n FROM alerts WHERE created_at > ? AND status IN ('coming','moved')", d30),
+      n('SELECT COUNT(*) AS n FROM alert_photos'),
+      n('SELECT COUNT(*) AS n FROM checkin_prefs'),
+    ]);
+    const notRegistered30 = await n("SELECT COUNT(*) AS n FROM alerts WHERE created_at > ? AND status = 'not_registered'", d30);
+    res.json({ users, users7, withCar, cars, withPush, alerts7, alerts30, answered30, notRegistered30, photos, daily });
   }));
 
   // ---------- Free spots: daily question at a time each student picks + live status ----------
