@@ -411,6 +411,20 @@ async function main() {
     res.json({ users, users7, withCar, cars, withPush, alerts7, alerts30, answered30, notRegistered30, photos, daily });
   }));
 
+  // Admin: the actual records (personal data, so admins only). Alerts don't say who sent them.
+  app.get('/api/admin/records', auth, h(async (req, res) => {
+    if (!ADMIN_EMAILS.includes(req.user.email)) return res.sendStatus(403);
+    const users = await db.all(`SELECT u.id, u.email, u.created_at,
+        (SELECT COUNT(*) FROM push_subs s WHERE s.user_id = u.id) AS devices
+      FROM users u ORDER BY u.created_at DESC LIMIT 1000`);
+    const plates = await db.all('SELECT user_id, plate, label FROM plates');
+    for (const u of users) u.plates = plates.filter((p) => p.user_id === u.id).map((p) => ({ plate: p.plate, label: p.label }));
+    const alerts = await db.all(`SELECT id, plate, zone, spot, status, created_at,
+        (SELECT COUNT(*) FROM alert_photos p WHERE p.alert_id = alerts.id) AS photo
+      FROM alerts WHERE created_at > ? ORDER BY created_at DESC LIMIT 300`, now() - 30 * 86400e3);
+    res.json({ users: users.map(({ id, ...u }) => u), alerts });
+  }));
+
   // ---------- Free spots: daily question at a time each student picks + live status ----------
   let ticking = false;
   async function checkinTick() {

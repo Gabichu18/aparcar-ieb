@@ -251,3 +251,8 @@ body.no-scroll { overflow: hidden; }
 .stat b { font-size: 1.8rem; line-height: 1.1; margin-top: 4px; }
 .stat span:not(.stat-i) { font-weight: 600; font-size: .9rem; }
 .stat small { color: var(--muted); font-size: .78rem; }
+.records { margin-top: 12px; }
+.records summary { cursor: pointer; font-weight: 700; padding: 12px 14px; background: var(--soft); border-radius: 12px; }
+.records h3 { font-size: 1rem; margin: 16px 0 8px; }
+.records input[type=search] { margin-top: 10px; }
+.rec .rec-email { word-break: break-all; font-size: .95rem; }

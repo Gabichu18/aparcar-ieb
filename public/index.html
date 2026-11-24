@@ -154,6 +154,15 @@
         <p class="muted small">Solo lo ves tú (administrador). Son totales: no se muestra quién es quién.</p>
         <div id="statsGrid" class="stats-grid"></div>
         <button id="statsRefresh" type="button" class="link">Actualizar</button>
+        <details id="records" class="records">
+          <summary>📋 Ver registros</summary>
+          <p class="note small">Son datos personales (emails y matrículas). Solo los ven los administradores: no los compartas.</p>
+          <input id="recordsSearch" type="search" placeholder="Buscar email o matrícula">
+          <h3>Personas registradas <span id="usersCount" class="muted"></span></h3>
+          <div id="usersList" class="list"></div>
+          <h3>Avisos de los últimos 30 días <span id="alertsCount" class="muted"></span></h3>
+          <div id="adminAlerts" class="list"></div>
+        </details>
       </div>
 
       <h2>Cuenta</h2>

@@ -422,7 +422,32 @@ async function loadStats() {
       `<div class="stat"><span class="stat-i">${i}</span><b>${esc(String(v))}</b><span>${esc(l)}</span><small>${esc(sub)}</small></div>`).join('');
   } catch (err) { $('#statsGrid').textContent = 'No se pudieron cargar las estadísticas.'; }
 }
-$('#statsRefresh').addEventListener('click', loadStats);
+$('#statsRefresh').addEventListener('click', () => { loadStats(); if ($('#records').open) loadRecords(); });
+let records = null;
+const fmtDate = (ts) => new Date(ts).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+async function loadRecords() {
+  try { records = await api('/api/admin/records'); renderRecords(); }
+  catch { $('#usersList').textContent = 'No se pudieron cargar los registros.'; }
+}
+function renderRecords() {
+  if (!records) return;
+  const q = $('#recordsSearch').value.trim().toLowerCase().replace(/\s+/g, '');
+  const users = records.users.filter((u) => !q || u.email.toLowerCase().includes(q) || u.plates.some((p) => p.plate.toLowerCase().includes(q)));
+  const alerts = records.alerts.filter((a) => !q || a.plate.toLowerCase().includes(q));
+  $('#usersCount').textContent = `(${users.length})`;
+  $('#alertsCount').textContent = `(${alerts.length})`;
+  $('#usersList').innerHTML = users.map((u) => `
+    <div class="item rec"><div class="head"><b class="rec-email">${esc(u.email)}</b>${u.devices ? '<span class="pill moved">🔔 Sí</span>' : '<span class="pill">🔕 No</span>'}</div>
+      <div class="meta">Desde ${fmtDate(u.created_at)}</div>
+      <div class="meta">${u.plates.length ? u.plates.map((p) => `🚗 <b>${esc(fmtPlate(p.plate))}</b>${p.label ? ' ' + esc(p.label) : ''}`).join(' · ') : 'Sin coche'}</div>
+    </div>`).join('') || '<div class="empty">Nadie coincide.</div>';
+  $('#adminAlerts').innerHTML = alerts.map((a) => `
+    <div class="item rec"><div class="head"><span class="plate-tag">${esc(fmtPlate(a.plate))}</span><span class="pill ${a.status}">${STATUS[a.status]}</span></div>
+      <div class="meta">${esc(zoneName(a.zone))}${a.spot ? ', ' + esc(a.spot) : ''}${a.photo ? ' · 📷' : ''} · ${fmtDate(a.created_at)}</div>
+    </div>`).join('') || '<div class="empty">No hay avisos.</div>';
+}
+$('#records').addEventListener('toggle', () => { if ($('#records').open && !records) loadRecords(); });
+$('#recordsSearch').addEventListener('input', renderRecords);
 
 // ---------- Telegram ----------
 function updateTelegram(tg) {
