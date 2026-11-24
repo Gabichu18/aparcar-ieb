@@ -82,7 +82,7 @@ const TABLES = (pg) => `
 `;
 
 // Columns added after the first version (added automatically to existing databases).
-const NEW_COLUMNS = [['spot_x', 'REAL'], ['spot_y', 'REAL'], ['spot', 'TEXT'], ['reminded', 'INTEGER'], ['escalated', 'INTEGER'], ['confirm_asked', 'INTEGER']];
+const NEW_COLUMNS = [['spot_x', 'REAL'], ['spot_y', 'REAL'], ['spot', 'TEXT'], ['reminded', 'INTEGER'], ['escalated', 'INTEGER'], ['confirm_asked', 'INTEGER'], ['reminder_count', 'INTEGER'], ['last_reminded_at', 'BIGINT']];
 
 async function openDb() {
   if (process.env.DATABASE_URL) {

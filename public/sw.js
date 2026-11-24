@@ -1,5 +1,5 @@
 // Service worker: shows push notifications and caches the app shell.
-const CACHE = 'aparcar-v24';
+const CACHE = 'aparcar-v25';
 const SHELL = ['/', '/style.css', '/app.js', '/spot.js', '/zonemap.js', '/icon.svg?v=2', '/icon-192.png?v=2', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -27,6 +27,7 @@ self.addEventListener('push', (e) => {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       tag: data.alertId ? 'alert-' + data.alertId : undefined,
+      renotify: !!data.alertId, // ring again for every reminder, even though it replaces the previous one
       requireInteraction: !!data.requireInteraction,
       vibrate: [200, 100, 200],
       data: { url: data.url || '/' },

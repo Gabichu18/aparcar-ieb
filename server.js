@@ -21,7 +21,7 @@ const DEV_MODE = mailMode === 'console'; // no email service set up: codes are p
 
 const LIMITS = {
   alertsPerHour: Number(process.env.ALERTS_PER_HOUR || 5),
-  samePlateMinutes: 5,     // one alert per plate per 5 minutes (from anyone)
+  samePlateMinutes: 2,     // one alert per plate per 2 minutes (from anyone); reminders repeat every 2 min anyway
   codeMinutes: 10,         // login code validity
   codeRequestsPerHour: 5,  // per email
   maxPlatesPerUser: 3,
@@ -30,6 +30,7 @@ const LIMITS = {
   remindMinutes: Number(process.env.REMIND_MINUTES || 2),
   escalateMinutes: Number(process.env.ESCALATE_MINUTES || 10),
   confirmMovedMinutes: Number(process.env.CONFIRM_MOVED_MINUTES || 2), // after "on my way", ask "moved it?"
+  maxReminders: 6,          // reminders to the owner stop after 6 (about 12 minutes)
   spotReportHours: 3,      // a "free / full" answer is shown for 3 hours
 };
 
@@ -452,14 +453,24 @@ async function main() {
   // 2 min with no answer: remind the owner. 10 min: tell the reporter to try the front desk / security.
   async function alertTick() {
     const t = now();
-    const toRemind = await db.all("SELECT * FROM alerts WHERE status = 'notified' AND reminded IS NULL AND created_at < ? AND created_at > ?",
-      t - LIMITS.remindMinutes * 60e3, t - 3600e3);
-    for (const a of toRemind) {
-      await db.run('UPDATE alerts SET reminded = 1 WHERE id = ?', a.id);
-      const body = `Tu coche ${a.plate} sigue bloqueando a alguien en ${zoneName(a.zone)}${a.spot ? ' (' + a.spot + ')' : ''}. Pulsa «Voy de camino» para que lo sepa.`;
+    // Every 2 minutes, until the owner taps "Ya lo he movido" (at most 6 times):
+    //  - no answer yet: "Recordatorio: mueve tu coche"
+    //  - said "on my way": "¿Ya has movido tu coche?"
+    // The 2 minutes count from the alert, from their last answer, or from the last reminder.
+    const open = await db.all("SELECT * FROM alerts WHERE status IN ('notified','coming') AND created_at > ? AND COALESCE(reminder_count, 0) < ?",
+      t - 3600e3, LIMITS.maxReminders);
+    for (const a of open) {
+      const since = Math.max(Number(a.updated_at), Number(a.last_reminded_at || 0));
+      const wait = (a.status === 'coming' ? LIMITS.confirmMovedMinutes : LIMITS.remindMinutes) * 60e3;
+      if (t - since < wait) continue;
+      await db.run('UPDATE alerts SET reminder_count = COALESCE(reminder_count, 0) + 1, last_reminded_at = ? WHERE id = ?', t, a.id);
+      const where = `${zoneName(a.zone)}${a.spot ? ' (' + a.spot + ')' : ''}`;
+      const [title, body] = a.status === 'coming'
+        ? ['✅ ¿Ya has movido tu coche?', `Si ya has movido el ${a.plate}, pulsa «Ya lo he movido» para que quien estaba bloqueado pueda salir tranquilo.`]
+        : ['⏰ Recordatorio: mueve tu coche', `Tu coche ${a.plate} sigue bloqueando a alguien en ${where}. Pulsa «Voy de camino» para que lo sepa.`];
       await Promise.all([
-        pushToUser(a.owner_id, { title: '⏰ Recordatorio: mueve tu coche', body, url: '/#incoming', alertId: a.id, requireInteraction: true }),
-        telegramToUser(a.owner_id, (chat) => telegram.sendAlert(chat, a.id, `⏰ ${body}`)),
+        pushToUser(a.owner_id, { title, body, url: '/#incoming', alertId: a.id, requireInteraction: true }),
+        telegramToUser(a.owner_id, (chat) => telegram.sendAlert(chat, a.id, `${title} ${body}`)),
       ]);
     }
     const toEscalate = await db.all("SELECT * FROM alerts WHERE status = 'notified' AND escalated IS NULL AND created_at < ? AND created_at > ?",
@@ -474,19 +485,8 @@ async function main() {
       ]);
     }
 
-    // Owner said "on my way" 2 min ago: ask them to confirm once the car is moved.
-    const toConfirm = await db.all("SELECT * FROM alerts WHERE status = 'coming' AND confirm_asked IS NULL AND updated_at < ? AND updated_at > ?",
-      t - LIMITS.confirmMovedMinutes * 60e3, t - 3600e3);
-    for (const a of toConfirm) {
-      await db.run('UPDATE alerts SET confirm_asked = 1 WHERE id = ?', a.id);
-      const body = `Si ya has movido el ${a.plate}, pulsa «Ya lo he movido» para que quien estaba bloqueado pueda salir tranquilo.`;
-      await Promise.all([
-        pushToUser(a.owner_id, { title: '✅ ¿Ya has movido tu coche?', body, url: '/#incoming', alertId: a.id, requireInteraction: true }),
-        telegramToUser(a.owner_id, (chat) => telegram.sendAlert(chat, a.id, `✅ ¿Ya has movido tu coche? ${body}`)),
-      ]);
-    }
   }
-  setInterval(() => alertTick().catch(console.error), 30e3).unref();
+  setInterval(() => alertTick().catch(console.error), 15e3).unref();
 
   app.get('/api/parking', auth, h(async (req, res) => {
     const since = now() - LIMITS.spotReportHours * 3600e3;
