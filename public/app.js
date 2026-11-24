@@ -42,12 +42,13 @@ function openTab(name) {
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   if (name === 'activity') loadAlerts();
   if (name === 'cars') loadMe();
+  if (name === 'blocks') loadBlocks();
   if (name === 'parking') loadParking();
   if (name === 'alert') setTimeout(() => zoneMap && zoneMap.refresh(), 50);
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('#tabs button').forEach((b) => b.addEventListener('click', () => {
-  history.replaceState(null, '', b.dataset.tab === 'cars' ? '/' : '#' + b.dataset.tab);
+  history.replaceState(null, '', b.dataset.tab === 'blocks' ? '/' : '#' + b.dataset.tab);
   openTab(b.dataset.tab);
 }));
 function tabFromHash() {
@@ -55,7 +56,8 @@ function tabFromHash() {
   if (h === 'incoming' || h === 'sent' || h === 'activity') return 'activity';
   if (h === 'alert') return 'alert';
   if (h === 'parking') return 'parking';
-  return 'cars';
+  if (h === 'cars') return 'cars';
+  return 'blocks';
 }
 
 // ---------- Login ----------
@@ -292,6 +294,21 @@ function openLightbox(src) {
   const lb = $('#lightbox'); lb.querySelector('img').src = src; lb.classList.remove('hidden');
 }
 $('#lightbox').addEventListener('click', () => $('#lightbox').classList.add('hidden'));
+
+// ---------- Últimos bloqueos ----------
+// Shows only plate, car model/colour and place. Never notes, photos or people.
+async function loadBlocks() {
+  try {
+    const { blocks } = await api('/api/blocks');
+    $('#blocksList').innerHTML = blocks.length ? blocks.map((b) => `
+      <div class="item block-item${b.mine ? ' mine' : ''}">
+        <div class="head"><span class="plate-tag">${esc(fmtPlate(b.plate))}</span><span class="meta">${ago(b.at)}</span></div>
+        ${b.car ? `<div class="car-desc">🚘 ${esc(b.car)}</div>` : ''}
+        <div>📍 <b>${esc(zoneName(b.zone))}</b>${b.spot ? `, ${esc(b.spot)}` : ''}</div>
+        ${b.mine ? '<a class="mine-note" href="#incoming">⚠️ ¡Es tu coche! Toca aquí para responder.</a>' : ''}
+      </div>`).join('') : '<div class="empty">Ahora mismo no hay ningún coche bloqueando. 👍</div>';
+  } catch (err) { toast(err.message); }
+}
 
 // ---------- Activity ----------
 async function loadAlerts() {
@@ -748,7 +765,9 @@ async function start() {
   $('#email').placeholder = 'nombre@' + (config.allowedDomains[config.allowedDomains.length - 1] || 'universidad.es');
   try {
     const me = await api('/api/me');
-    show('app'); renderZones(); openTab(tabFromHash()); loadAlerts();
+    show('app'); renderZones();
+    // New users with no car yet start in "Mis coches" so they see the first-steps guide.
+    openTab(!location.hash && !me.plates.length ? 'cars' : tabFromHash()); loadAlerts();
   } catch (err) {
     if (err.status === 401) show('login'); else toast(err.message);
   }
@@ -764,6 +783,7 @@ window.addEventListener('hashchange', () => { if (config) openTab(tabFromHash())
 document.addEventListener('visibilitychange', () => {
   if (document.hidden || !config) return;
   loadAlerts();
+  if (!$('#tab-blocks').classList.contains('hidden') && !$('#appView').classList.contains('hidden')) loadBlocks();
   if (!$('#tab-cars').classList.contains('hidden') && !$('#appView').classList.contains('hidden')) loadMe().catch(() => {});
 });
 start();

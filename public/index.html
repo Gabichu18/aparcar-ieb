@@ -52,6 +52,13 @@
 
   <!-- App -->
   <main id="appView" class="view hidden">
+    <!-- Latest blocks: public board of cars blocking right now (plate, model, zone only) -->
+    <section id="tab-blocks" class="tab">
+      <h1 class="blocks-title"><span class="warn-icon" aria-hidden="true">!</span>Últimos bloqueos</h1>
+      <p class="muted">Coches que están bloqueando a alguien ahora mismo (últimas 3 horas). Mira si el tuyo está aquí.</p>
+      <div id="blocksList" class="list" aria-live="polite"></div>
+    </section>
+
     <!-- Send alert -->
     <section id="tab-alert" class="tab hidden">
       <h1>¿Alguien te bloquea?</h1>
@@ -124,7 +131,7 @@
     </section>
 
     <!-- My cars -->
-    <section id="tab-cars" class="tab">
+    <section id="tab-cars" class="tab hidden">
       <h1>Mis coches</h1>
       <div id="guide" class="guide hidden" aria-live="polite"></div>
       <p class="muted">Nadie puede ver tu nombre ni tu email: solo reciben el aviso.</p>
@@ -176,7 +183,8 @@
   </main>
 
   <nav id="tabs" class="tabs hidden">
-    <button data-tab="cars" class="active"><span>🚗</span>Mis coches</button>
+    <button data-tab="blocks" class="active tab-blocks"><span><i class="warn-icon" aria-hidden="true">!</i></span>Últimos bloqueos</button>
+    <button data-tab="cars"><span>🚗</span>Mis coches</button>
     <button data-tab="alert" class="tab-main"><span>📣</span>Avisar</button>
     <button data-tab="parking"><span>🅿️</span>Sitios</button>
     <button data-tab="activity"><span>🔔</span>Actividad<i id="badge" class="badge hidden"></i></button>

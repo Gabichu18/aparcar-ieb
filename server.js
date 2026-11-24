@@ -31,8 +31,9 @@ const LIMITS = {
   escalateMinutes: Number(process.env.ESCALATE_MINUTES || 10),
   confirmMovedMinutes: Number(process.env.CONFIRM_MOVED_MINUTES || 2), // after "on my way", ask "moved it?"
   maxReminders: 6,          // reminders to the owner stop after 6 (about 12 minutes)
-  spotReportHours: 3,
-  spotVotesNeeded: 2,      // people who must agree before a zone shows as free / full      // a "free / full" answer is shown for 3 hours
+  spotReportHours: 3,       // a "free / full" answer is shown for 3 hours
+  spotVotesNeeded: 2,       // people who must agree before a zone shows as free / full
+  blocksBoardHours: 3,      // "Últimos bloqueos" shows cars still blocking from the last 3 hours
 };
 
 // Campus location, to check that people answering "are there free spots?" are really there.
@@ -349,6 +350,21 @@ async function main() {
       "SELECT id, plate, car, zone, note, status, created_at, updated_at, spot_x, spot_y, spot, (SELECT COUNT(*) FROM alert_photos p WHERE p.alert_id = alerts.id) AS photo FROM alerts WHERE owner_id = ? AND created_at > ? AND status <> 'not_registered' ORDER BY created_at DESC",
       req.user.id, since);
     res.json({ sent, incoming });
+  }));
+
+  // "Últimos bloqueos": public board of cars that are blocking right now (last 3 h, not yet moved).
+  // Only plate, car model/colour and place: never notes, photos, or who sent or owns it.
+  app.get('/api/blocks', auth, h(async (req, res) => {
+    const rows = await db.all(
+      "SELECT plate, car, zone, spot, created_at, owner_id FROM alerts WHERE status IN ('notified','coming','not_registered') AND created_at > ? ORDER BY created_at DESC LIMIT 100",
+      now() - LIMITS.blocksBoardHours * 3600e3);
+    const seen = new Set(), blocks = [];
+    for (const r of rows) {
+      if (seen.has(r.plate)) continue; // one entry per car, the newest
+      seen.add(r.plate);
+      blocks.push({ plate: r.plate, car: r.car || null, zone: r.zone, spot: r.spot || null, at: Number(r.created_at), mine: r.owner_id != null && Number(r.owner_id) === Number(req.user.id) });
+    }
+    res.json({ blocks: blocks.slice(0, 30) });
   }));
 
   async function telegramToUser(userId, send) {

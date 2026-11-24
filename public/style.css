@@ -259,3 +259,16 @@ body.no-scroll { overflow: hidden; }
 .car-desc { font-weight: 600; margin: 2px 0; }
 .vote-pending { margin-top: 6px; font-size: .85rem; color: #93370d; background: #fef0c7; border-radius: 8px; padding: 6px 10px; }
 @media (prefers-color-scheme: dark) { .vote-pending { background: #3a2410; color: #fcd9b6; } }
+
+/* "Últimos bloqueos": yellow warning sign, first tab */
+.warn-icon { display: inline-grid; place-items: center; width: 1.25em; height: 1.25em; border-radius: 50%;
+  background: #fdb022; color: #1d1d1d; font-style: normal; font-weight: 900; line-height: 1; box-shadow: 0 0 0 3px rgba(253,176,34,.3); }
+.blocks-title { display: flex; align-items: center; gap: 10px; }
+.blocks-title .warn-icon { width: 36px; height: 36px; font-size: 1.4rem; flex: none; }
+.tabs button.tab-blocks span .warn-icon { width: 26px; height: 26px; font-size: 1rem; }
+.tabs button.tab-blocks { font-size: .7rem; line-height: 1.1; text-align: center; }
+.tabs button.tab-blocks.active { color: #b54708; }
+.block-item { border-left: 5px solid #fdb022; }
+.block-item.mine { border-left-color: var(--danger); background: #fff4ed; }
+.mine-note { display: block; margin-top: 8px; font-weight: 700; color: var(--danger); text-decoration: none; }
+@media (prefers-color-scheme: dark) { .block-item.mine { background: rgba(224,48,30,.15); } }
