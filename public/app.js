@@ -461,7 +461,8 @@ $('#deleteAccount').addEventListener('click', async () => {
 });
 
 // ---------- Push notifications ----------
-const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+// iPads with recent iPadOS say they are a Mac; the touch screen gives them away.
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
@@ -530,7 +531,12 @@ function guideSteps(me) {
   const installed = isStandalone || store.get('guide.installed') === '1';
   const pushOn = pushSupported && perm === 'granted' && me.pushDevices > 0;
   let installHow;
-  if (isMobile) installHow = 'Así la tienes como cualquier app y te llegan los avisos. Pulsa el botón y te enseñamos dónde tocar.';
+  if (isMobile) {
+    const plan = installPlan();
+    installHow = (plan.oneTap ? 'Pulsa el botón y confirma. Así la tienes como cualquier app y te llegan los avisos.'
+      : plan.lead.replace('Es muy fácil, sigue estos pasos:', 'Así te llegan los avisos como en cualquier app:'))
+      + (plan.steps.length ? '<ol class="mini-steps">' + plan.steps.map(([, t]) => `<li>${t}</li>`).join('') + '</ol>' : '');
+  }
   else if (isIOS) installHow = 'En <b>Safari</b>, toca los <b>tres puntitos ⋯</b> y luego <b>«Añadir a pantalla de inicio»</b> (Add to Home Screen). Después abre Aparcar IEB <b>desde ese icono</b>.';
   else if (isAndroid) installHow = installPrompt ? 'Pulsa el botón y confirma. Aparecerá el icono de Aparcar IEB en tu móvil.'
     : 'En Chrome, pulsa el menú <b>⋮</b> (arriba a la derecha) y luego <b>«Instalar aplicación»</b> o <b>«Añadir a pantalla de inicio»</b>.';
@@ -544,8 +550,8 @@ function guideSteps(me) {
     { n: 1, key: 'login', title: 'Entra con tu email de la universidad', done: true },
     { n: 2, key: 'car', title: 'Añade la matrícula de tu coche', done: me.plates.length > 0,
       how: 'Escribe tu matrícula abajo y pulsa <b>Añadir</b>. Puedes añadir hasta 3 coches.', btn: ['car', 'Añadir mi coche'] },
-    { n: 3, key: 'install', title: 'Instala la app en tu móvil', done: installed, how: installHow,
-      btn: isMobile ? ['install', installPrompt ? 'Instalar la app' : 'Cómo instalarla'] : ['installed', 'Ya la tengo instalada'] },
+    { n: 3, key: 'install', title: 'Instala la app en tu móvil o tablet', done: installed, how: installHow,
+      btn: isMobile ? ['install', installPrompt ? '📲 Instalar la app' : '👉 Enséñame dónde tocar'] : ['installed', 'Ya la tengo instalada'] },
     { n: 4, key: 'push', title: 'Activa las notificaciones', done: pushDone, how: pushHow, btn: pushBtn },
     { n: 5, key: 'test', title: 'Haz una prueba', done: store.get('guide.tested') === '1' || (pushDone && !pushOn),
       how: 'Te mandamos una notificación de prueba para comprobar que te llegan.', btn: pushOn ? ['test', 'Enviarme una prueba'] : null },

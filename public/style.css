@@ -129,7 +129,7 @@ input.plate::placeholder { font-weight: 400; letter-spacing: .05em; color: var(-
 .guide-bar span { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .6s; }
 .guide-steps { list-style: none; margin: 0; padding: 0; }
 .guide-steps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; padding: 8px 0;
-  max-height: 400px; overflow: hidden; transition: opacity .8s, max-height .8s .5s, padding .8s .5s; }
+  max-height: 900px; overflow: hidden; transition: opacity .8s, max-height .8s .5s, padding .8s .5s; }
 .guide-steps li + li { border-top: 1px solid var(--line); }
 .guide-steps .num { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .9rem;
   background: var(--soft); color: var(--muted); }
@@ -238,3 +238,10 @@ body.no-scroll { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .install-arrow { animation: none !important; } }
 .install-steps .en { color: var(--muted); font-size: .88em; white-space: nowrap; }
 .install-steps .hint { display: block; color: var(--muted); font-size: .82rem; margin-top: 2px; }
+.mini-steps { margin: 6px 0 0; padding-left: 22px; list-style: decimal; }
+.mini-steps li::marker { font-weight: 800; color: var(--accent); }
+.mini-steps li { margin: 3px 0; }
+.mini-steps .en { color: var(--muted); font-size: .9em; }
+.mini-steps .hint { display: block; color: var(--muted); font-size: .85em; }
+.guide-steps .mini-steps li { display: list-item; padding: 0; margin: 4px 0; max-height: none; border: 0; opacity: 1; }
+.guide-steps .mini-steps li + li { border-top: 0; }
