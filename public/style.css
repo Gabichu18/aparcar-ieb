@@ -272,3 +272,15 @@ body.no-scroll { overflow: hidden; }
 .block-item.mine { border-left-color: var(--danger); background: #fff4ed; }
 .mine-note { display: block; margin-top: 8px; font-weight: 700; color: var(--danger); text-decoration: none; }
 @media (prefers-color-scheme: dark) { .block-item.mine { background: rgba(224,48,30,.15); } }
+
+/* Centred pop-up window (e.g. plate not registered) */
+.notice { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.55); display: grid; place-items: center; padding: 16px; }
+.notice-card { background: var(--card); border-radius: 18px; padding: 24px 20px 20px; max-width: 340px; width: 100%; text-align: center;
+  box-shadow: 0 20px 50px rgba(0,0,0,.35); animation: notice-in .18s ease-out; }
+.notice-icon { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 50%; background: #fdb022; color: #1d1d1d;
+  display: grid; place-items: center; font-size: 2rem; font-weight: 900; }
+.notice-card h2 { margin: 0 0 8px; font-size: 1.2rem; }
+.notice-card p { margin: 0 0 18px; color: var(--muted); }
+.notice-card button { width: 100%; }
+@keyframes notice-in { from { transform: scale(.92); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .notice-card { animation: none; } }

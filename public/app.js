@@ -129,12 +129,20 @@ $('#alertForm').addEventListener('submit', async (e) => {
       r.classList.add('ok');
       r.textContent = 'Aviso enviado. Hemos avisado al dueño. Te llegará una notificación cuando responda (mira en Actividad).';
     } else {
-      r.classList.add('warn');
-      r.textContent = 'Lo sentimos, pero la matrícula no está registrada. Comunícaselo al delegado o a recepción.';
+      r.classList.add('hidden');
+      openNotice('Lo sentimos, pero la matrícula no está registrada.', 'Comunícaselo al delegado o a recepción.');
     }
     $('#alertPlate').value = ''; $('#alertNote').value = ''; $('#alertCar').value = ''; selectZone(null); $('#scanState').classList.add('hidden'); setPhoto(null);
   } catch (err) { toast(err.message); }
 });
+
+// Centred pop-up window for important messages.
+function openNotice(title, text) {
+  $('#noticeTitle').textContent = title; $('#noticeText').textContent = text;
+  $('#notice').classList.remove('hidden'); $('#noticeOk').focus();
+}
+$('#noticeOk').addEventListener('click', () => $('#notice').classList.add('hidden'));
+$('#notice').addEventListener('click', (e) => { if (e.target.id === 'notice') $('#notice').classList.add('hidden'); });
 
 // ---------- Read the plate from a photo (Tesseract, runs on the phone) ----------
 let ocrWorker = null;
@@ -158,7 +166,7 @@ async function photoAt(img, width) {
   const g = c.getContext('2d'); g.filter = 'grayscale(1) contrast(1.2)'; g.drawImage(img, 0, 0, c.width, c.height);
   return c;
 }
-// Find a Spanish plate in the text: 1234 BCD (current) or M 1234 AB (old). Fixes common misreads.
+// Find a Spanish plate in the text: 1234 BCD (the only format the app accepts). Fixes common misreads.
 function findPlate(text) {
   const raw = text.toUpperCase().replace(/[^A-Z0-9\n ]/g, ' ');
   const toDigit = { O: '0', Q: '0', D: '0', I: '1', L: '1', Z: '2', S: '5', B: '8', G: '6', T: '7' };
@@ -177,9 +185,7 @@ function findPlate(text) {
       if (fixes <= 2 && (!best || fixes < best.fixes)) best = { fixes, plate: digits + ' ' + letters };
     }
   }
-  if (best) return best.plate;
-  const old = compact.match(/([A-Z]{1,2})(\d{4})([A-Z]{1,2})/);
-  return old ? `${old[1]} ${old[2]} ${old[3]}` : null;
+  return best ? best.plate : null;
 }
 // Read a tight crop around the plate (one line of text).
 async function readCrop(worker, crop) {
