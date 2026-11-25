@@ -22,10 +22,11 @@ function toast(msg) {
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const zoneName = (id) => (config.zones.find((z) => z.id === id) || {}).name || id;
-const fmtPlate = (p) => p.replace(/^(\d{4})([A-Z]{3})$/, '$1 $2');
-// Plates must be 4 numbers + 3 letters (0000 AAA). Letters are always shown in capitals.
-const PLATE_FORMAT_ERROR = 'La matrícula debe tener 4 números y 3 letras, por ejemplo 0000 AAA.';
-const plateOk = (v) => /^[0-9]{4}[A-Z]{3}$/.test(String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
+const fmtPlate = (p) => p.replace(/^(\d{4})([A-Z]{3})$/, '$1 $2').replace(/^([A-Z]{1,2})(\d{4})([A-Z]{1,2})$/, '$1 $2 $3');
+// Plates: current 0000 AAA, or old provincial M 1234 AB. Letters are always shown in capitals.
+const PLATE_FORMAT_ERROR = 'Escribe una matrícula válida: 0000 AAA o, si es antigua, M 1234 AB.';
+const plateOk = (v) => { const p = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return /^[0-9]{4}[A-Z]{3}$/.test(p) || /^[A-Z]{1,2}[0-9]{4}[A-Z]{1,2}$/.test(p); };
 document.querySelectorAll('input.plate').forEach((i) => i.addEventListener('input', () => {
   const pos = i.selectionStart, up = i.value.toUpperCase();
   if (up !== i.value) { i.value = up; try { i.setSelectionRange(pos, pos); } catch (e) {} }
@@ -166,7 +167,7 @@ async function photoAt(img, width) {
   const g = c.getContext('2d'); g.filter = 'grayscale(1) contrast(1.2)'; g.drawImage(img, 0, 0, c.width, c.height);
   return c;
 }
-// Find a Spanish plate in the text: 1234 BCD (the only format the app accepts). Fixes common misreads.
+// Find a Spanish plate in the text: 1234 BCD (current) or M 1234 AB (old). Fixes common misreads.
 function findPlate(text) {
   const raw = text.toUpperCase().replace(/[^A-Z0-9\n ]/g, ' ');
   const toDigit = { O: '0', Q: '0', D: '0', I: '1', L: '1', Z: '2', S: '5', B: '8', G: '6', T: '7' };
@@ -185,7 +186,9 @@ function findPlate(text) {
       if (fixes <= 2 && (!best || fixes < best.fixes)) best = { fixes, plate: digits + ' ' + letters };
     }
   }
-  return best ? best.plate : null;
+  if (best) return best.plate;
+  const old = compact.match(/([A-Z]{1,2})(\d{4})([A-Z]{1,2})/);
+  return old ? `${old[1]} ${old[2]} ${old[3]}` : null;
 }
 // Read a tight crop around the plate (one line of text).
 async function readCrop(worker, crop) {
