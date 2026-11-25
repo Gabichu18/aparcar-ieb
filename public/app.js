@@ -23,6 +23,13 @@ function toast(msg) {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const zoneName = (id) => (config.zones.find((z) => z.id === id) || {}).name || id;
 const fmtPlate = (p) => p.replace(/^(\d{4})([A-Z]{3})$/, '$1 $2');
+// Plates must be 4 numbers + 3 letters (0000 AAA). Letters are always shown in capitals.
+const PLATE_FORMAT_ERROR = 'La matrícula debe tener 4 números y 3 letras, por ejemplo 0000 AAA.';
+const plateOk = (v) => /^[0-9]{4}[A-Z]{3}$/.test(String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
+document.querySelectorAll('input.plate').forEach((i) => i.addEventListener('input', () => {
+  const pos = i.selectionStart, up = i.value.toUpperCase();
+  if (up !== i.value) { i.value = up; try { i.setSelectionRange(pos, pos); } catch (e) {} }
+}));
 function ago(ts) {
   const m = Math.round((Date.now() - ts) / 60000);
   if (m < 1) return 'ahora mismo'; if (m < 60) return `hace ${m} min`;
@@ -115,6 +122,7 @@ $('#alertForm').addEventListener('submit', async (e) => {
   if (!selectedZone) return toast('Elige primero la zona.');
   try {
     const plate = $('#alertPlate').value;
+    if (!plateOk(plate)) return toast(PLATE_FORMAT_ERROR);
     const res = await api('/api/alerts', { body: { zone: selectedZone, spot: selectedSpot, plate, note: $('#alertNote').value, car: $('#alertCar').value, photo: alertPhoto } });
     r.classList.remove('hidden', 'ok', 'warn');
     if (res.status === 'notified') {
@@ -122,7 +130,7 @@ $('#alertForm').addEventListener('submit', async (e) => {
       r.textContent = 'Aviso enviado. Hemos avisado al dueño. Te llegará una notificación cuando responda (mira en Actividad).';
     } else {
       r.classList.add('warn');
-      r.textContent = 'Esta matrícula no está registrada en la app, así que no podemos avisar al dueño. Prueba con recepción o seguridad del campus.';
+      r.textContent = 'Lo sentimos, pero la matrícula no está registrada. Comunícaselo al delegado o a recepción.';
     }
     $('#alertPlate').value = ''; $('#alertNote').value = ''; $('#alertCar').value = ''; selectZone(null); $('#scanState').classList.add('hidden'); setPhoto(null);
   } catch (err) { toast(err.message); }
@@ -514,6 +522,7 @@ async function loadMe() {
 $('#plateForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
+    if (!plateOk($('#newPlate').value)) return toast(PLATE_FORMAT_ERROR);
     await api('/api/plates', { body: { plate: $('#newPlate').value, label: $('#newLabel').value } });
     $('#newPlate').value = ''; $('#newLabel').value = '';
     toast('Coche añadido.'); loadMe();

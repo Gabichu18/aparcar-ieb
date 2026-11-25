@@ -62,7 +62,8 @@ const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
 // Plates are stored uppercase with no spaces/dashes: "1234 ABC" -> "1234ABC".
 const normalizePlate = (p) => String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-const validPlate = (p) => /^[A-Z0-9]{4,10}$/.test(p);
+const validPlate = (p) => /^[0-9]{4}[A-Z]{3}$/.test(p); // Spanish format: 4 numbers + 3 letters (0000 AAA)
+const PLATE_FORMAT_ERROR = 'La matrícula debe tener 4 números y 3 letras, por ejemplo 0000 AAA.';
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 function emailAllowed(e) {
   const domain = e.split('@')[1];
@@ -241,7 +242,7 @@ async function main() {
   app.post('/api/plates', auth, h(async (req, res) => {
     const plate = normalizePlate(req.body.plate);
     const label = String(req.body.label || '').slice(0, 40);
-    if (!validPlate(plate)) return res.status(400).json({ error: 'Eso no parece una matrícula.' });
+    if (!validPlate(plate)) return res.status(400).json({ error: PLATE_FORMAT_ERROR });
     const count = Number((await db.get('SELECT COUNT(*) AS n FROM plates WHERE user_id = ?', req.user.id)).n);
     if (count >= LIMITS.maxPlatesPerUser) {
       return res.status(400).json({ error: `Puedes registrar hasta ${LIMITS.maxPlatesPerUser} matrículas.` });
@@ -285,7 +286,7 @@ async function main() {
     const zone = String(req.body.zone || '');
     const note = String(req.body.note || '').trim().slice(0, 140);
     const car = String(req.body.car || '').trim().replace(/\s+/g, ' ').slice(0, 60);
-    if (!validPlate(plate)) return res.status(400).json({ error: 'Introduce una matrícula válida.' });
+    if (!validPlate(plate)) return res.status(400).json({ error: PLATE_FORMAT_ERROR });
     const zoneDef = zones.find((z) => z.id === zone);
     if (!zoneDef) return res.status(400).json({ error: 'Elige una zona.' });
     const spot = req.body.spot ? Spot.snap(zoneDef, req.body.spot.x, req.body.spot.y) : null;
